@@ -1,0 +1,41 @@
+package server
+
+import (
+	"net/http"
+
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+
+	"github.com/traP-jp/1m26_1/backend/internal/config"
+	"github.com/traP-jp/1m26_1/backend/internal/handler"
+	authmiddleware "github.com/traP-jp/1m26_1/backend/internal/middleware"
+)
+
+func New(cfg config.Config) *echo.Echo {
+	e := echo.New()
+	e.HideBanner = true
+	e.HidePort = true
+
+	e.Use(middleware.Recover())
+	e.Use(middleware.Logger())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: cfg.CORSAllowOrigins,
+		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, "X-Forwarded-User"},
+	}))
+
+	registerRoutes(e)
+
+	return e
+}
+
+func registerRoutes(e *echo.Echo) {
+	healthHandler := handler.NewHealthHandler()
+	userHandler := handler.NewUserHandler()
+
+	e.GET("/healthz", healthHandler.Get)
+
+	api := e.Group("/api")
+	api.Use(authmiddleware.ForwardedUser)
+	api.GET("/me", userHandler.GetMe)
+}

@@ -1,0 +1,45 @@
+[tools]
+node = "24.17.0"
+go = "1.26.4"
+
+[tasks.init]
+description = "開発環境を初期化"
+run = [
+  "pnpm --dir frontend install",
+  "mise --cd backend run init",
+]
+
+[tasks."frontend:gen:api-schema"]
+description = "フロントエンド用の API スキーマ型を生成"
+dir = "frontend"
+run = "pnpm exec openapi-typescript ../openapi.yaml -o src/api/schema.d.ts --root-types --root-types-no-schema-prefix"
+
+[tasks.frontend]
+description = "フロントエンドを起動"
+dir = "frontend"
+run = "pnpm run dev"
+
+[tasks."frontend:mock"]
+description = "モック API に接続してフロントエンドを起動"
+dir = "frontend"
+run = "VITE_API_MOCK=true pnpm run dev"
+
+[tasks.backend]
+description = "バックエンドを起動"
+run = "mise --cd backend run dev"
+
+[tasks."backend:test"]
+description = "バックエンドのテストを実行"
+run = "mise --cd backend run test"
+
+[tasks."backend:fmt"]
+description = "バックエンドの Go ファイルを整形"
+run = "mise --cd backend run fmt"
+
+[tasks."backend:lint"]
+description = "バックエンドの lint を実行"
+run = "mise --cd backend run lint"
+
+[tasks."backend:docker-build"]
+description = "バックエンドの Docker image をビルド"
+run = "mise --cd backend run docker-build"

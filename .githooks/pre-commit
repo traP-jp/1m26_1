@@ -1,0 +1,49 @@
+#!/bin/sh
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+staged_files="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+if [ -z "$staged_files" ]; then
+	exit 0
+fi
+
+run_with_mise() {
+	if command -v mise >/dev/null 2>&1; then
+		mise exec -- "$@"
+	else
+		"$@"
+	fi
+}
+
+format_backend_go() {
+	printf '%s\n' "$staged_files" | while IFS= read -r file; do
+		case "$file" in
+			backend/*.go
+                (
+				    run_with_mise gofmt -w "$file"
+                )
+				git add "$file"
+				;;
+		esac
+	done
+}
+
+format_frontend() {
+	printf '%s\n' "$staged_files" | while IFS= read -r file; do
+		case "$file" in
+			frontend/*.js|frontend/*.jsx|frontend/*.mjs|frontend/*.cjs|frontend/*.ts|frontend/*.tsx|frontend/*.mts|frontend/*.cts|frontend/*.vue|frontend/*.css|frontend/*.scss|frontend/*.sass|frontend/*.less|frontend/*.styl|frontend/*.json|frontend/*.jsonc|frontend/*.yaml|frontend/*.yml|frontend/src/*.js|frontend/src/*.jsx|frontend/src/*.mjs|frontend/src/*.cjs|frontend/src/*.ts|frontend/src/*.tsx|frontend/src/*.mts|frontend/src/*.cts|frontend/src/*.vue|frontend/src/*.css|frontend/src/*.scss|frontend/src/*.sass|frontend/src/*.less|frontend/src/*.styl|frontend/src/*.json|frontend/src/*.jsonc|frontend/src/*.yaml|frontend/src/*.yml)
+				(
+					cd frontend
+					run_with_mise pnpm exec prettier --write --ignore-unknown "${file#frontend/}"
+				)
+				git add "$file"
+				;;
+		esac
+	done
+}
+
+format_backend_go
+format_frontend

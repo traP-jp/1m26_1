@@ -1,0 +1,26 @@
+[tools]
+go = "1.26.4"
+
+[tasks.init]
+description = "バックエンドの依存関係を取得"
+run = "go mod download"
+
+[tasks.dev]
+description = "バックエンドを起動"
+run = "go run ./cmd/server"
+
+[tasks.fmt]
+description = "Go ファイルを整形"
+run = "gofmt -w ."
+
+[tasks.lint]
+description = "lint を実行"
+run = "go vet ./..."
+
+[tasks.test]
+description = "テストを実行"
+run = "go test ./..."
+
+[tasks.docker-build]
+description = "Docker image をビルド"
+run = "docker build -t 1m26_1-backend:latest ."
