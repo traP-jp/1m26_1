@@ -20,7 +20,7 @@ export default defineConfigWithVueTs(
     ...pluginVue.configs['flat/essential'],
     vueTsConfigs.recommended,
 
-    ...(pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json') as any[]),
+    ...(pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json') as unknown as Record<string, any>[]),
 
     skipFormatting,
 )
