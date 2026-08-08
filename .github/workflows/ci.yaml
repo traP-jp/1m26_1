@@ -72,9 +72,6 @@ jobs:
             - name: Install dependencies
               run: npm install --frozen-lockfile
 
-            - name: Approve Builds
-              run: pnpm approve-builds yorkie
-
             - name: Type check
               run: pnpm run type-check
 
