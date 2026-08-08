@@ -1,4 +1,5 @@
 import { globalIgnores } from 'eslint/config'
+import { Linter } from 'eslint'
 import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript'
 import pluginVue from 'eslint-plugin-vue'
 import pluginOxlint from 'eslint-plugin-oxlint'
@@ -20,7 +21,7 @@ export default defineConfigWithVueTs(
     ...pluginVue.configs['flat/essential'],
     vueTsConfigs.recommended,
 
-    ...(pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json') as unknown as Record<string, any>[]),
+    ...(pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json') as unknown as Linter.Config[]),
 
     skipFormatting,
 )
