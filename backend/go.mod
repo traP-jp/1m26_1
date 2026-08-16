@@ -2,13 +2,18 @@ module github.com/traP-jp/1m26_1/backend
 
 go 1.26
 
-require github.com/labstack/echo/v4 v4.15.4
+require (
+	github.com/labstack/echo/v4 v4.15.4
+	github.com/oapi-codegen/runtime v1.7.0
+)
 
 require (
+	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/dprotaso/go-yit v0.0.0-20220510233725-9ba8df137936 // indirect
 	github.com/getkin/kin-openapi v0.144.0 // indirect
 	github.com/go-openapi/jsonpointer v0.22.5 // indirect
 	github.com/go-openapi/swag/jsonname v0.25.5 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/labstack/gommon v0.5.0 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
