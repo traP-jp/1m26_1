@@ -1,0 +1,487 @@
+openapi: 3.0.3
+
+info:
+    title: 1m26_1 API
+    version: 0.1.0
+    description: ドパガキ用 traQ の HTTP API 及び WebSocket event body Schema
+
+servers:
+    - url: http://localhost:8080
+      description: 開発環境ダヨ
+
+security:
+    - forwardedUser: []
+
+tags:
+    - name: users
+      description: ユーザー
+    - name: timeline
+      description: タイムライン
+    - name: websocket
+      description: WebSocket 接続
+
+paths:
+    /api/users/me:
+        get:
+            tags:
+                - users
+            summary: 自分の情報を取得する。
+            operationId: getMe
+            responses:
+                '200':
+                    description: 認証成功。
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/User'
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+                '500':
+                    $ref: '#/components/responses/InternalServerError'
+
+    /api/users/:userId:
+        get:
+            tags:
+                - users
+            summary: ユーザープロフィールを取得する。
+            operationId: getUser
+            responses:
+                '200':
+                    description: 取得成功。
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UserProfile'
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+                '404':
+                    $ref: '#/components/responses/NotFound'
+                '500':
+                    $ref: '#/components/responses/InternalServerError'
+
+    /api/timeline:
+        get:
+            tags:
+                - timeline
+            summary: タイムラインを取得する。
+            operationId: getTimeline
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SortByPopularity'
+            responses:
+                '200':
+                    description: 取得成功。
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/TimelineMessage'
+                '400':
+                    $ref: '#/components/responses/BadRequest'
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+                '500':
+                    $ref: '#/components/responses/InternalServerError'
+
+    /api/timeline/new:
+        get:
+            tags:
+                - timeline
+            summary: タイムラインの新しい投稿を取得する。
+            operationId: getIn
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SortByPopularity'
+            responses:
+                '200':
+                    description: 変更あり。
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/TimelineMessage'
+                '204':
+                    description: 変更なし。
+                '400':
+                    $ref: '#/components/responses/BadRequest'
+                '401':
+                    $ref: '#/components/responses/Unauthorized'
+                '500':
+                    $ref: '#/components/responses/InternalServerError'
+
+    /api/ws:
+        get:
+            tags:
+                - websocket
+            summary: WebSocket 接続開始。
+            operationId: connectWebSocket
+            responses:
+                '101':
+                    description: WebSocket Stream
+
+components:
+    securitySchemas:
+        forwardedUser:
+            type: apiKey
+            in: header
+            name: X-Forwarded-User
+            description: ユーザーの ID
+
+    responses:
+        BadRequest:
+            description: リクエスト不備。出直して来い。
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/Error'
+
+        Unauthorized:
+            description: 認証に失敗した。残念だったね。
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/Error'
+
+        NotFound:
+            description: 見つかりませんでした。ざまあ。
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/Error'
+
+        InternalServerError:
+            description: サーバーの内部でエラーが発生。
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/Error'
+
+    schemas:
+        UUID:
+            type: string
+            description: UUID
+
+        DateTime:
+            type: string
+            format: date-time
+            description: ISO 8601 datetime string
+
+        UserId:
+            type: string
+            description: ユーザーの ID
+
+        UserName:
+            type: string
+            description: ユーザー名
+
+        Count:
+            type: integer
+            description: 自然数
+
+        User:
+            type: object
+            properties:
+                id:
+                    $ref: '#/components/schemas/UUID'
+                userId:
+                    $ref: '#/components/schemas/UserId'
+                name:
+                    $ref: '#/components/schemas/UserName'
+            required:
+                - userId
+
+        UserProfile:
+            type: object
+            properties:
+                id:
+                    $ref: '#/components/schemas/UUID'
+                userId:
+                    $ref: '#/components/schemas/UserId'
+                name:
+                    $ref: '#/components/schemas/UserName'
+                messageCount:
+                    $ref: '#/components/schemas/Count'
+                stampCount:
+                    $ref: '#/components/schemas/Count'
+            required:
+                - userId
+
+        SortByPopularity:
+            type: boolean
+            description: 人気 (True) / 最新 (False)
+
+        Error:
+            type: object
+            properties:
+                message:
+                    type: string
+            required:
+                - message
+
+        TimelineMessage:
+            type: object
+            properties:
+                messages:
+                    type: array
+                    minItems: 1
+                    maxItems: 50
+                    uniqueItems: true
+                    items:
+                        $ref: '#/components/schemas/UUID'
+            required:
+                - messages
+
+        WebSocketEventType:
+            type: string
+            enum:
+                - MessageCreated
+                - MessageDeleted
+                - MessageEdited
+                - StampUpdated
+                - UsernameChanged
+                - UserIconReplaced
+                - StampInfoChanged
+                - StampImageReplaced
+
+        UserWebSocketEvent:
+            description: 送信される WebSocket イベント。
+            oneOf:
+                - $ref: '#/components/schemas/MessageCreatedEvent'
+                - $ref: '#/components/schemas/MessageDeletedEvent'
+                - $ref: '#/components/schemas/MessageEditedEvent'
+                - $ref: '#/components/schemas/StampUpdatedEvent'
+                - $ref: '#/components/schemas/UsernameChangedEvent'
+                - $ref: '#/components/schemas/UserIconReplacedEvent'
+                - $ref: '#/components/schemas/StampInfoChangedEvent'
+                - $ref: '#/components/schemas/StampImageReplacedEvent'
+
+        WebSocketEventBase:
+            type: object
+            properties:
+                type:
+                    $ref: '#/components/schemas/WebSocketEventType'
+                body:
+                    type: object
+                    additionalProperties: true
+            required:
+                - type
+                - body
+
+        MessageCreatedEvent:
+            allOf:
+                - $ref: '#/components/schemas/WebSocketEventBase'
+                - type: object
+                  properties:
+                      type:
+                          type: string
+                          enum:
+                              - MessageCreated
+                      body:
+                          $ref: '#/components/schemas/MessageCreatedBody'
+                  required:
+                      - type
+                      - body
+
+        MessageDeletedEvent:
+            allOf:
+                - $ref: '#/components/schemas/WebSocketEventBase'
+                - type: object
+                  properties:
+                      type:
+                          type: string
+                          enum:
+                              - MessageDeleted
+                      body:
+                          $ref: '#/components/schemas/MessageDeletedBody'
+                  required:
+                      - type
+                      - body
+
+        MessageEditedEvent:
+            allOf:
+                - $ref: '#/components/schemas/WebSocketEventBase'
+                - type: object
+                  properties:
+                      type:
+                          type: string
+                          enum:
+                              - MessageEdited
+                      body:
+                          $ref: '#/components/schemas/MessageEditedBody'
+                  required:
+                      - type
+                      - body
+
+        StampUpdatedEvent:
+            allOf:
+                - $ref: '#/components/schemas/WebSocketEventBase'
+                - type: object
+                  properties:
+                      type:
+                          type: string
+                          enum:
+                              - StampUpdated
+                      body:
+                          $ref: '#/components/schemas/StampUpdatedBody'
+                  required:
+                      - type
+                      - body
+
+        UsernameChangedEvent:
+            allOf:
+                - $ref: '#/components/schemas/WebSocketEventBase'
+                - type: object
+                  properties:
+                      type:
+                          type: string
+                          enum:
+                              - UsernameChanged
+                      body:
+                          $ref: '#/components/schemas/UsernameChangedBody'
+                  required:
+                      - type
+                      - body
+
+        UserIconReplacedEvent:
+            allOf:
+                - $ref: '#/components/schemas/WebSocketEventBase'
+                - type: object
+                  properties:
+                      type:
+                          type: string
+                          enum:
+                              - UserIconReplaced
+                      body:
+                          $ref: '#/components/schemas/UserIconReplacedBody'
+                  required:
+                      - type
+                      - body
+
+        StampInfoChangedEvent:
+            allOf:
+                - $ref: '#/components/schemas/WebSocketEventBase'
+                - type: object
+                  properties:
+                      type:
+                          type: string
+                          enum:
+                              - StampInfoChanged
+                      body:
+                          $ref: '#/components/schemas/StampInfoChangedBody'
+                  required:
+                      - type
+                      - body
+
+        StampImageReplacedEvent:
+            allOf:
+                - $ref: '#/components/schemas/WebSocketEventBase'
+                - type: object
+                  properties:
+                      type:
+                          type: string
+                          enum:
+                              - StampImageReplaced
+                      body:
+                          $ref: '#/components/schemas/StampImageReplacedBody'
+                  required:
+                      - type
+                      - body
+
+        MessageCreatedBody:
+            type: object
+            properties:
+                messageCount:
+                    $ref: '#/components/schemas/Count'
+            required:
+                - messageCount
+
+        MessageDeletedBody:
+            type: object
+            properties:
+                messageId:
+                    $ref: '#/components/schemas/UUID'
+            required:
+                - messageId
+
+        MessageEditedBody:
+            type: object
+            properties:
+                messageIds:
+                    type: array
+                    minItems: 1
+                    uniqueItems: true
+                    items:
+                        $ref: '#/components/schemas/UUID'
+            required:
+                - messageIds
+
+        StampUpdatedBody:
+            type: object
+            properties:
+                stamps:
+                    $ref: '#/components/schemas/Stamps'
+            required:
+                - stamps
+
+        UsernameChangedBody:
+            type: object
+            properties:
+                user:
+                    $ref: '#/components/schemas/User'
+            required:
+                - user
+
+        UserIconReplacedBody:
+            type: object
+            properties:
+                userId:
+                    $ref: '#/components/schemas/UserId'
+            required:
+                - userId
+
+        StampInfoChangedBody:
+            type: object
+            properties:
+                stampId:
+                    $ref: '#/components/schemas/UUID'
+                name:
+                    type: string
+            required:
+                - stampId
+                - name
+
+        StampImageReplacedBody:
+            type: object
+            properties:
+                stampId:
+                    $ref: '#/components/schemas/UUID'
+            required:
+                - stampId
+
+        Stamps:
+            type: object
+            properties:
+                superior:
+                    type: array
+                    maxItems: 5
+                    items:
+                        $ref: '#/components/schemas/Stamp'
+                othersCount:
+                    type: integer
+            required:
+                - superior
+
+        Stamp:
+            type: object
+            properties:
+                id:
+                    $ref: '#/components/schemas/UUID'
+                count:
+                    $ref: '#/components/schemas/Count'
+            required:
+                - id
+                - count

@@ -37,5 +37,5 @@ func registerRoutes(e *echo.Echo) {
 
 	api := e.Group("/api")
 	api.Use(authmiddleware.ForwardedUser)
-	api.GET("/me", userHandler.GetMe)
+	api.GET("/users/me", userHandler.GetMe)
 }

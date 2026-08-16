@@ -24,8 +24,8 @@ func TestHealthz(t *testing.T) {
 
 func TestGetMeUsesForwardedUser(t *testing.T) {
 	e := New(testConfig())
-	req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
-	req.Header.Set("X-Forwarded-User", "mumumu")
+	req := httptest.NewRequest(http.MethodGet, "/api/users/me", nil)
+	req.Header.Set("X-Forwarded-User", "traP")
 	rec := httptest.NewRecorder()
 
 	e.ServeHTTP(rec, req)
@@ -39,14 +39,14 @@ func TestGetMeUsesForwardedUser(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if body.ID != "mumumu" || body.Name != "mumumu" {
+	if body.ID != "traP" || body.Name != "traP" {
 		t.Fatalf("unexpected response: %+v", body)
 	}
 }
 
 func TestGetMeFallsBackToDeveloper(t *testing.T) {
 	e := New(testConfig())
-	req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/users/me", nil)
 	rec := httptest.NewRecorder()
 
 	e.ServeHTTP(rec, req)
