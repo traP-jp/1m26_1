@@ -17,4 +17,4 @@
     "eslint.workingDirectories": [{ "directory": "frontend", "changeProcessCWD": true }],
     "prettier.configPath": "frontend/.prettierrc.json",
     "prettier.prettierPath": "frontend/node_modules/prettier/index.cjs"
-} 
+}
