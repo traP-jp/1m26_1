@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/traP-jp/1m26_1/backend/internal/openapi"
@@ -9,7 +8,7 @@ import (
 
 func marshalWebSocketEvent(event any) (openapi.UserWebSocketEvent, bool, error) {
 	if wrapped, ok := event.(openapi.UserWebSocketEvent); ok {
-		return wrapped, nil
+		return wrapped, false, nil
 	}
 	var result openapi.UserWebSocketEvent
 	var err error
@@ -31,7 +30,7 @@ func marshalWebSocketEvent(event any) (openapi.UserWebSocketEvent, bool, error) 
 	case openapi.UsernameChangedEvent:
 		err = result.FromUsernameChangedEvent(event)
 	default:
-		result, false, fmt.Errorf("%T is not a WebSocket event schema", event)
+		return result, false, fmt.Errorf("%T is not a WebSocket event schema", event)
 	}
 	return result, true, err
 }

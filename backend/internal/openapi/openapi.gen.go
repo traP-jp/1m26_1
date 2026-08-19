@@ -5,7 +5,6 @@ package openapi
 
 import (
 	"encoding/json"
-	"time"
 
 	"github.com/oapi-codegen/runtime"
 )
@@ -168,9 +167,6 @@ func (e WebSocketEventType) Valid() bool {
 
 // Count 自然数
 type Count = int
-
-// DateTime ISO 8601 datetime string
-type DateTime = time.Time
 
 // Error defines model for Error.
 type Error struct {
@@ -384,11 +380,15 @@ type NotFound = Error
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
 
-// GetTimelineJSONRequestBody defines body for GetTimeline for application/json ContentType.
-type GetTimelineJSONRequestBody = SortByPopularity
+// GetTimelineParams defines parameters for GetTimeline.
+type GetTimelineParams struct {
+	SortByPopularity bool `form:"SortByPopularity" json:"SortByPopularity"`
+}
 
-// GetInJSONRequestBody defines body for GetIn for application/json ContentType.
-type GetInJSONRequestBody = SortByPopularity
+// GetInParams defines parameters for GetIn.
+type GetInParams struct {
+	SortByPopularity bool `form:"SortByPopularity" json:"SortByPopularity"`
+}
 
 // AsMessageCreatedEvent returns the union data inside the UserWebSocketEvent as a MessageCreatedEvent
 func (t UserWebSocketEvent) AsMessageCreatedEvent() (MessageCreatedEvent, error) {
