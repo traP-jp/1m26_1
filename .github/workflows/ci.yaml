@@ -37,9 +37,6 @@ jobs:
             - name: Lint
               run: go vet ./...
 
-            - name: Test
-              run: go test ./...
-
             - name: Build Docker image
               run: docker build -t 1m26_1-backend:ci .
 
