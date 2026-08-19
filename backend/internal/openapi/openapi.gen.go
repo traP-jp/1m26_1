@@ -217,6 +217,16 @@ type MessageEditedEvent struct {
 // MessageEditedEventType defines model for MessageEditedEvent.Type.
 type MessageEditedEventType string
 
+// OAuthResponse defines model for OAuthResponse.
+type OAuthResponse struct {
+	AccessToken  string  `json:"access_token"`
+	ExpiresIn    int     `json:"expires_in"`
+	RefreshToken *string `json:"refresh_token,omitempty"`
+
+	// TokenType Example: Bearer
+	TokenType string `json:"token_type"`
+}
+
 // SortByPopularity 人気 (True) / 最新 (False)
 type SortByPopularity = bool
 
@@ -377,8 +387,16 @@ type InternalServerError = Error
 // NotFound defines model for NotFound.
 type NotFound = Error
 
+// OAuth defines model for OAuth.
+type OAuth = OAuthResponse
+
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = Error
+
+// PostAPIOauthTokenJSONBody defines parameters for PostAPIOauthToken.
+type PostAPIOauthTokenJSONBody struct {
+	Code *string `json:"code,omitempty"`
+}
 
 // GetTimelineParams defines parameters for GetTimeline.
 type GetTimelineParams struct {
@@ -389,6 +407,9 @@ type GetTimelineParams struct {
 type GetInParams struct {
 	SortByPopularity bool `form:"SortByPopularity" json:"SortByPopularity"`
 }
+
+// PostAPIOauthTokenJSONRequestBody defines body for PostAPIOauthToken for application/json ContentType.
+type PostAPIOauthTokenJSONRequestBody PostAPIOauthTokenJSONBody
 
 // AsMessageCreatedEvent returns the union data inside the UserWebSocketEvent as a MessageCreatedEvent
 func (t UserWebSocketEvent) AsMessageCreatedEvent() (MessageCreatedEvent, error) {
