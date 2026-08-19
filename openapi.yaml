@@ -21,6 +21,25 @@ tags:
       description: WebSocket 接続
 
 paths:
+    /api/oauth/token:
+        post:
+            requestBody:
+                description: OAuth
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                code:
+                                    type: string
+            responses:
+                '200':
+                    $ref: '#/components/responses/OAuth'
+                '400':
+                    $ref: '#/components/responses/BadRequest'
+                '403':
+                    $ref: '#/components/responses/Forbidden'
     /api/users/me:
         get:
             tags:
@@ -45,19 +64,19 @@ paths:
                 - users
             summary: ユーザープロフィールを取得する。
             operationId: getUser
-            responses:
-                '200':
-                    description: 取得成功。
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/UserProfile'
-                '401':
-                    $ref: '#/components/responses/Unauthorized'
-                '404':
-                    $ref: '#/components/responses/NotFound'
-                '500':
-                    $ref: '#/components/responses/InternalServerError'
+        responses:
+            '200':
+                description: 取得成功。
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UserProfile'
+            '401':
+                $ref: '#/components/responses/Unauthorized'
+            '404':
+                $ref: '#/components/responses/NotFound'
+            '500':
+                $ref: '#/components/responses/InternalServerError'
 
     /api/timeline:
         get:
@@ -146,6 +165,13 @@ components:
                     schema:
                         $ref: '#/components/schemas/Error'
 
+        Forbidden:
+            description: 返却できない。
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/Error'
+
         NotFound:
             description: 見つかりませんでした。ざまあ。
             content:
@@ -160,7 +186,31 @@ components:
                     schema:
                         $ref: '#/components/schemas/Error'
 
+        OAuth:
+            description: OAuth
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/OAuthResponse'
+
     schemas:
+        OAuthResponse:
+            type: object
+            properties:
+                access_token:
+                    type: string
+                token_type:
+                    type: string
+                    example: 'Bearer'
+                expires_in:
+                    type: integer
+                refresh_token:
+                    type: string
+            required:
+                - access_token
+                - token_type
+                - expires_in
+
         UUID:
             type: string
             description: UUID
