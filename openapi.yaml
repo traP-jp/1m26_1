@@ -65,12 +65,12 @@ paths:
                 - timeline
             summary: タイムラインを取得する。
             operationId: getTimeline
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/SortByPopularity'
+            parameters:
+                - name: SortByPopularity
+                  in: query
+                  schema:
+                      type: boolean
+                  required: true
             responses:
                 '200':
                     description: 取得成功。
@@ -91,12 +91,12 @@ paths:
                 - timeline
             summary: タイムラインの新しい投稿を取得する。
             operationId: getIn
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/SortByPopularity'
+            parameters:
+                - name: SortByPopularity
+                  in: query
+                  schema:
+                      type: boolean
+                  required: true
             responses:
                 '200':
                     description: 変更あり。
@@ -164,11 +164,6 @@ components:
         UUID:
             type: string
             description: UUID
-
-        DateTime:
-            type: string
-            format: date-time
-            description: ISO 8601 datetime string
 
         UserId:
             type: string
