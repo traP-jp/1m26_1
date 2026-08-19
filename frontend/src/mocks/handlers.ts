@@ -13,43 +13,21 @@ interface UserTag {
     updatedAt: string
 }
 
-/**
- * ユーザーアカウント状態
- * - 0: 停止
- * - 1: 有効
- * - 2: 一時停止
- */
 type UserAccountState = 0 | 1 | 2
 
-/**
- * ユーザー詳細情報（traQ API v3 準拠）
- */
 interface UserDetail {
-    /** ユーザーUUID */
     id: string
-    /** ユーザーアカウント状態 0: 停止 1: 有効 2: 一時停止 */
     state: UserAccountState
-    /** BOTかどうか */
     bot: boolean
-    /** アイコンファイルUUID */
     iconFileId: string
-    /** ユーザー表示名 (maxLength: 32) */
     displayName: string
-    /** ユーザー名 (pattern: ^([a-zA-Z0-9_-]{1,32}|Webhook#[a-zA-Z0-9_-]{22})$) */
     name: string
-    /** Twitter ID (pattern: ^[a-zA-Z0-9_]{0,15}$) */
     twitterId: string
-    /** 最終オンライン日時 (nullable) */
     lastOnline: string | null
-    /** 更新日時 */
     updatedAt: string
-    /** タグリスト */
     tags: UserTag[]
-    /** 所属グループのUUIDの配列 */
     groups: string[]
-    /** 自己紹介 (maxLength: 1000) */
     bio: string
-    /** ホームチャンネル (nullable) */
     homeChannel: string | null
 }
 
@@ -104,39 +82,33 @@ interface Message {
     embed: { content: string } | null
 }
 
-// 1m26_1 API の型（生成型からインポート）
 type ApiUser = components['schemas']['User']
 type ApiUserProfile = components['schemas']['UserProfile']
 type ApiTimelineMessage = components['schemas']['TimelineMessage']
 type ApiSortByPopularity = components['schemas']['SortByPopularity']
 
-// API クライアントと同じ接続先を使う。Vite と API サーバーが別 origin でも
-// ハンドラーが一致するよう、相対 URL ではなく絶対 URL を登録する。
 const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
 const apiUrl = (path: string): string => new URL(path, API_BASE_URL).toString()
 
 // ============================================
-// 2. ユーティリティ関数（型安全版）
+// 2. 乱数を使わない生成ユーティリティ
 // ============================================
 
-const generateUUID = (): string => crypto.randomUUID()
-
-const randomInt = (min: number, max: number): number =>
-    Math.floor(Math.random() * (max - min + 1)) + min
-
-const randomPick = <T>(arr: T[]): T => {
-    if (arr.length === 0) {
-        throw new Error('配列が空です')
-    }
-    return arr[Math.floor(Math.random() * arr.length)] as T
+const createUuid = (seed: number): string => {
+    const suffix = seed.toString(16).padStart(12, '0')
+    return `00000000-0000-4000-8000-${suffix}`
 }
 
-const simulateNetworkDelay = async (minMs = 100, maxMs = 600) => {
-    await delay(randomInt(minMs, maxMs))
+const stableDate = (baseDate: Date, dayOffset: number, hour: number, minute: number): string => {
+    const date = new Date(baseDate)
+    date.setUTCDate(date.getUTCDate() + dayOffset)
+    date.setUTCHours(hour, minute, 0, 0)
+    return date.toISOString()
 }
 
-const randomDate = (from: Date, to: Date): Date =>
-    new Date(from.getTime() + Math.random() * (to.getTime() - from.getTime()))
+const simulateNetworkDelay = async (ms: number) => {
+    await delay(ms)
+}
 
 // ダミー画像（1x1 PNG）を base64 から Uint8Array に変換
 const dummyImageData = (() => {
@@ -151,14 +123,10 @@ const dummyImageData = (() => {
 })()
 
 // ============================================
-// 3. モックデータ生成（型安全）
+// 3. モックデータ生成（決定論的）
 // ============================================
 
-// ---------- ユーザー（traQ API用） ----------
-const generateMockUser = (overrides: Partial<UserDetail> = {}): UserDetail => {
-    const now = new Date()
-    const id = generateUUID()
-    const name = `user_${id.slice(0, 8)}`
+const generateMockUser = (index: number, overrides: Partial<UserDetail> = {}): UserDetail => {
     const displayNames = ['太郎', '花子', '次郎', 'さくら', 'ゆうた', 'めい', 'こうた', 'りな']
     const bios = [
         '自己紹介文です。よろしくお願いします！',
@@ -167,43 +135,36 @@ const generateMockUser = (overrides: Partial<UserDetail> = {}): UserDetail => {
         'traPで楽しく活動しています！',
         '',
     ]
+    const baseDate = new Date('2025-01-01T00:00:00Z')
+    const id = createUuid(1000 + index)
+    const name = `user_${String(index).padStart(2, '0')}`
+
+    const bio = bios[index % bios.length] ?? ''
+
     return {
         id,
-        state: 1, // 有効（固定）
-        bot: Math.random() > 0.9,
-        iconFileId: generateUUID(),
-        displayName: `traP ${displayNames[randomInt(0, displayNames.length - 1)]}`,
+        state: 1,
+        bot: index % 10 === 0,
+        iconFileId: createUuid(2000 + index),
+        displayName: `traP ${displayNames[(index - 1) % displayNames.length]}`,
         name,
-        twitterId: Math.random() > 0.7 ? `@${name}` : '',
-        lastOnline: randomDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), now).toISOString(),
-        updatedAt: randomDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), now).toISOString(),
+        twitterId: index % 4 === 0 ? `@${name}` : '',
+        lastOnline: stableDate(baseDate, index % 20, (index * 3) % 24, (index * 7) % 60),
+        updatedAt: stableDate(baseDate, index % 20, (index * 5) % 24, (index * 11) % 60),
         tags: [],
         groups: [],
-        bio: randomPick(bios),
-        homeChannel: Math.random() > 0.5 ? generateUUID() : null,
+        bio,
+        homeChannel: index % 3 === 0 ? createUuid(3000 + index) : null,
         ...overrides,
     }
 }
 
-// モックユーザープール（10件）
-const MOCK_USERS: UserDetail[] = (() => {
-    const users = Array.from({ length: 10 }, () => generateMockUser())
-    if (users.length === 0) {
-        users.push(generateMockUser())
-    }
-    return users
-})()
+const MOCK_USERS: UserDetail[] = Array.from({ length: 10 }, (_, index) =>
+    generateMockUser(index + 1),
+)
 
-// CURRENT_USER を確実に定義（TypeScript に undefined でないことを認識させる）
-const CURRENT_USER: UserDetail = (() => {
-    const user = MOCK_USERS[0]
-    if (!user) {
-        return generateMockUser()
-    }
-    return user
-})()
+const CURRENT_USER: UserDetail = MOCK_USERS[0] ?? generateMockUser(1)
 
-// ---------- チャンネル ----------
 const MOCK_PUBLIC_CHANNELS: PublicChannel[] = [
     {
         id: 'c-001',
@@ -253,94 +214,101 @@ const MOCK_PUBLIC_CHANNELS: PublicChannel[] = [
 ]
 
 const MOCK_DM_CHANNELS: DMChannel[] = [
-    { id: 'dm-001', userId: MOCK_USERS[1]?.id || generateUUID() },
-    { id: 'dm-002', userId: MOCK_USERS[2]?.id || generateUUID() },
+    { id: 'dm-001', userId: MOCK_USERS[1]?.id || createUuid(9999) },
+    { id: 'dm-002', userId: MOCK_USERS[2]?.id || createUuid(9998) },
 ]
 
-// ---------- スタンプ ----------
-const generateMockStamp = (overrides: Partial<Stamp> = {}): Stamp => {
+const generateMockStamp = (index: number, overrides: Partial<Stamp> = {}): Stamp => {
     const names = ['👍', '❤️', '😂', '🔥', '🤔', '🎉', '💯', '✨', '🚀', '👀']
-    const isUnicode = Math.random() > 0.3
-    const creatorId = MOCK_USERS.length > 0 ? randomPick(MOCK_USERS).id : CURRENT_USER.id
+    const baseDate = new Date('2025-01-01T00:00:00Z')
+    const creatorId = MOCK_USERS[(index + 1) % MOCK_USERS.length]?.id ?? CURRENT_USER.id
+    const isUnicode = index % 2 === 0
+
+    const stampName = isUnicode
+        ? (names[index % names.length] ?? '👍')
+        : `stamp_${String(index).padStart(2, '0')}`
+
     return {
-        id: generateUUID(),
-        name: isUnicode ? randomPick(names) : `stamp_${generateUUID().slice(0, 8)}`,
+        id: createUuid(4000 + index),
+        name: stampName,
         creatorId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        fileId: generateUUID(),
+        createdAt: stableDate(baseDate, index % 12, (index * 2) % 24, (index * 5) % 60),
+        updatedAt: stableDate(baseDate, index % 12, (index * 3) % 24, (index * 7) % 60),
+        fileId: createUuid(5000 + index),
         isUnicode,
-        hasThumbnail: Math.random() > 0.5,
+        hasThumbnail: index % 3 !== 0,
         ...overrides,
     }
 }
 
-const MOCK_STAMPS: Stamp[] = Array.from({ length: 10 }, () => generateMockStamp())
+const MOCK_STAMPS: Stamp[] = Array.from({ length: 10 }, (_, index) => generateMockStamp(index + 1))
 
-// ---------- メッセージ ----------
-const generateMockMessage = (overrides: Partial<Message> = {}): Message => {
-    const author = MOCK_USERS.length > 0 ? randomPick(MOCK_USERS) : CURRENT_USER
-    const channel = randomPick(MOCK_PUBLIC_CHANNELS)
-    const now = new Date()
-    const createdAt = randomDate(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), now)
+const messageTexts = [
+    '今日の進捗: Reactの勉強してた！やっとhooks理解した気がする。',
+    '科学大内で謎の写真を撮った。誰かこの場所わかる？',
+    '最近ずっとこの曲聴いてる。めっちゃ良い。',
+    'あいまい検索って実際どう実装するんだろうな…？',
+    'ルーレットで決まったけど、やっぱtraQ関連で正解だった気がする。',
+    '新しくスタンプが増えた？ かわいい。',
+    '明日の締切やばい…誰か助けて',
+    '今週の目標: 毎日運動する 💪',
+    'おすすめの本があったら教えてください 📚',
+    '今日のランチ何食べようかな 🤔',
+]
 
-    const stampCount = randomInt(0, 4)
-    const stamps: MessageStamp[] = []
-    const shuffledStamps = [...MOCK_STAMPS].sort(() => Math.random() - 0.5)
-    for (let i = 0; i < stampCount; i++) {
-        const s = shuffledStamps[i]
-        if (!s) continue
-        const firstStampAt = randomDate(createdAt, now)
-        stamps.push({
-            stampId: s.id,
-            count: randomInt(1, 20),
-            createdAt: firstStampAt.toISOString(),
-            updatedAt: randomDate(firstStampAt, now).toISOString(),
-            userId: randomPick(MOCK_USERS).id,
-        })
+const generateMockMessage = (index: number, overrides: Partial<Message> = {}): Message => {
+    const author = MOCK_USERS[index % MOCK_USERS.length] ?? CURRENT_USER
+    const fallbackChannel = MOCK_PUBLIC_CHANNELS[0]
+    if (!fallbackChannel) {
+        throw new Error('MOCK_PUBLIC_CHANNELS is empty')
     }
-
-    const messageTexts = [
-        '今日の進捗: Reactの勉強してた！やっとhooks理解した気がする。',
-        '科学大内で謎の写真を撮った。誰かこの場所わかる？',
-        '最近ずっとこの曲聴いてる。めっちゃ良い。',
-        'あいまい検索って実際どう実装するんだろうな…？',
-        'ルーレットで決まったけど、やっぱtraQ関連で正解だった気がする。',
-        '新しくスタンプが増えた？ かわいい。',
-        '明日の締切やばい…誰か助けて',
-        '今週の目標: 毎日運動する 💪',
-        'おすすめの本があったら教えてください 📚',
-        '今日のランチ何食べようかな 🤔',
-    ]
+    const channel = MOCK_PUBLIC_CHANNELS[index % MOCK_PUBLIC_CHANNELS.length] ?? fallbackChannel
+    const baseDate = new Date('2025-01-01T00:00:00Z')
+    const createdAt = stableDate(baseDate, index % 30, (index * 3) % 24, (index * 7) % 60)
+    const stampCount = index % 5
+    const stamps: MessageStamp[] = Array.from({ length: stampCount }, (_, offset) => {
+        const fallbackStamp = MOCK_STAMPS[0]
+        if (!fallbackStamp) {
+            throw new Error('MOCK_STAMPS is empty')
+        }
+        const stamp = MOCK_STAMPS[(index + offset) % MOCK_STAMPS.length] ?? fallbackStamp
+        return {
+            stampId: stamp.id,
+            count: ((index + offset + 1) % 9) + 1,
+            createdAt,
+            updatedAt: createdAt,
+            userId: MOCK_USERS[(index + offset + 1) % MOCK_USERS.length]?.id ?? CURRENT_USER.id,
+        }
+    })
+    const content = (messageTexts[index % messageTexts.length] ?? messageTexts[0]) as string
 
     return {
-        id: generateUUID(),
+        id: createUuid(6000 + index),
         channelId: channel.id,
         userId: author.id,
-        content: randomPick(messageTexts),
-        createdAt: createdAt.toISOString(),
-        updatedAt: createdAt.toISOString(),
+        content,
+        createdAt,
+        updatedAt: createdAt,
         stamps,
-        pinned: Math.random() > 0.9,
-        embed: Math.random() > 0.7 ? { content: 'https://example.com/embed' } : null,
+        pinned: index % 11 === 0,
+        embed: index % 7 === 0 ? { content: 'https://example.com/embed' } : null,
         ...overrides,
     }
 }
 
-// メッセージプール（50件）
-const MESSAGE_POOL: Message[] = Array.from({ length: 50 }, () => generateMockMessage())
+const MESSAGE_POOL: Message[] = Array.from({ length: 50 }, (_, index) =>
+    generateMockMessage(index + 1),
+)
 
-// 新着メッセージ用プール
-let pendingNewMessages: Message[] = []
+let pendingNewMessages: Message[] = [generateMockMessage(101, { channelId: 'c-001' })]
 
 // ============================================
-// 4. 1m26_1 API ハンドラー（生成型を利用）
+// 4. 1m26_1 API ハンドラー
 // ============================================
 
 const oneMonthonHandlers = [
-    // GET /api/users/me → ApiUser を返す
     http.get(apiUrl('/api/users/me'), async () => {
-        await simulateNetworkDelay(200, 400)
+        await simulateNetworkDelay(200)
         const response: ApiUser = {
             id: CURRENT_USER.id,
             userId: CURRENT_USER.name,
@@ -349,24 +317,22 @@ const oneMonthonHandlers = [
         return HttpResponse.json(response)
     }),
 
-    // GET /api/users/:userId → ApiUserProfile を返す
     http.get(apiUrl('/api/users/:userId'), async ({ params }) => {
-        await simulateNetworkDelay(150, 300)
+        await simulateNetworkDelay(180)
         const { userId } = params
         const user = MOCK_USERS.find((u) => u.name === userId) || CURRENT_USER
         const response: ApiUserProfile = {
             id: user.id,
             userId: user.name,
             name: user.displayName,
-            messageCount: randomInt(10, 500),
-            stampCount: randomInt(5, 200),
+            messageCount: 120 + Number.parseInt(user.id.slice(-2), 16),
+            stampCount: 40 + Number.parseInt(user.id.slice(-1), 16),
         }
         return HttpResponse.json(response)
     }),
 
-    // GET /api/timeline → sortByPopularity クエリで並び順を切り替える
     http.get(apiUrl('/api/timeline'), async ({ request }) => {
-        await simulateNetworkDelay(300, 700)
+        await simulateNetworkDelay(400)
         const isPopular: ApiSortByPopularity =
             new URL(request.url).searchParams.get('sortByPopularity') === 'true'
 
@@ -395,18 +361,13 @@ const oneMonthonHandlers = [
         return HttpResponse.json(response)
     }),
 
-    // GET /api/timeline/new → 新着がなければ 204 を返す
     http.get(apiUrl('/api/timeline/new'), async () => {
-        await simulateNetworkDelay(150, 350)
-
-        // ポーリングのたびに一定確率で新着を発生させ、200 と 204 の両方を再現する。
-        if (pendingNewMessages.length === 0 && Math.random() > 0.3) {
-            pendingNewMessages.push(generateMockMessage())
-        }
+        await simulateNetworkDelay(200)
 
         if (pendingNewMessages.length === 0) {
             return new HttpResponse(null, { status: 204 })
         }
+
         const newIds = pendingNewMessages.map((m) => m.id)
         MESSAGE_POOL.unshift(...pendingNewMessages)
         pendingNewMessages = []
@@ -414,25 +375,23 @@ const oneMonthonHandlers = [
         return HttpResponse.json(response)
     }),
 
-    // GET /api/ws
     http.get(apiUrl('/api/ws'), () => {
         return HttpResponse.json({ message: 'WebSocket endpoint (handled by real WS)' })
     }),
 ]
 
 // ============================================
-// 5. traQ API v3 ハンドラー（修正済み）
+// 5. traQ API v3 ハンドラー
 // ============================================
 
 const traqHandlers = [
-    // ---------- ユーザーAPI ----------
     http.get('https://q.trap.jp/api/v3/users/me', async () => {
-        await simulateNetworkDelay(100, 300)
+        await simulateNetworkDelay(150)
         return HttpResponse.json(CURRENT_USER)
     }),
 
     http.get('https://q.trap.jp/api/v3/users/:userId', async ({ params }) => {
-        await simulateNetworkDelay(100, 300)
+        await simulateNetworkDelay(180)
         const { userId } = params
         const user = MOCK_USERS.find((u) => u.id === userId || u.name === userId)
         if (!user) {
@@ -444,13 +403,12 @@ const traqHandlers = [
     }),
 
     http.get('https://q.trap.jp/api/v3/users', async () => {
-        await simulateNetworkDelay(200, 400)
+        await simulateNetworkDelay(250)
         return HttpResponse.json(MOCK_USERS)
     }),
 
-    // ---------- チャンネルAPI ----------
     http.get('https://q.trap.jp/api/v3/channels', async () => {
-        await simulateNetworkDelay(150, 300)
+        await simulateNetworkDelay(200)
         const response: ChannelsResponse = {
             public: MOCK_PUBLIC_CHANNELS,
             dm: MOCK_DM_CHANNELS,
@@ -461,7 +419,7 @@ const traqHandlers = [
     http.get(
         'https://q.trap.jp/api/v3/channels/:channelId/messages',
         async ({ params, request }) => {
-            await simulateNetworkDelay(200, 500)
+            await simulateNetworkDelay(300)
 
             const { channelId } = params
             const url = new URL(request.url)
@@ -473,10 +431,11 @@ const traqHandlers = [
 
             let messages = MESSAGE_POOL.filter((m) => m.channelId === channelId)
             if (messages.length === 0) {
-                messages = Array.from({ length: randomInt(5, 20) }, () =>
-                    generateMockMessage({ channelId: channelId as string }),
+                const generatedMessages = Array.from({ length: 8 }, (_, index) =>
+                    generateMockMessage(100 + index, { channelId: channelId as string }),
                 )
-                MESSAGE_POOL.push(...messages)
+                MESSAGE_POOL.push(...generatedMessages)
+                messages = generatedMessages
             }
 
             if (since) {
@@ -508,10 +467,10 @@ const traqHandlers = [
     http.post(
         'https://q.trap.jp/api/v3/channels/:channelId/messages',
         async ({ params, request }) => {
-            await simulateNetworkDelay(200, 400)
+            await simulateNetworkDelay(250)
             const { channelId } = params
             const body = (await request.json()) as { content: string; embed?: boolean }
-            const newMessage = generateMockMessage({
+            const newMessage = generateMockMessage(200 + MESSAGE_POOL.length, {
                 channelId: channelId as string,
                 content: body.content,
             })
@@ -520,9 +479,8 @@ const traqHandlers = [
         },
     ),
 
-    // ---------- 個別メッセージAPI ----------
     http.get('https://q.trap.jp/api/v3/messages/:messageId', async ({ params }) => {
-        await simulateNetworkDelay(100, 300)
+        await simulateNetworkDelay(150)
         const { messageId } = params
         const message = MESSAGE_POOL.find((m) => m.id === messageId)
         if (!message) {
@@ -534,7 +492,7 @@ const traqHandlers = [
     }),
 
     http.put('https://q.trap.jp/api/v3/messages/:messageId', async ({ params, request }) => {
-        await simulateNetworkDelay(150, 350)
+        await simulateNetworkDelay(180)
         const { messageId } = params
         const body = (await request.json()) as { content: string }
         const message = MESSAGE_POOL.find((m) => m.id === messageId)
@@ -549,7 +507,7 @@ const traqHandlers = [
     }),
 
     http.delete('https://q.trap.jp/api/v3/messages/:messageId', async ({ params }) => {
-        await simulateNetworkDelay(100, 300)
+        await simulateNetworkDelay(150)
         const { messageId } = params
         const index = MESSAGE_POOL.findIndex((m) => m.id === messageId)
         if (index === -1) {
@@ -561,14 +519,13 @@ const traqHandlers = [
         return new HttpResponse(null, { status: 204 })
     }),
 
-    // ---------- スタンプAPI ----------
     http.get('https://q.trap.jp/api/v3/stamps', async () => {
-        await simulateNetworkDelay(100, 250)
+        await simulateNetworkDelay(120)
         return HttpResponse.json(MOCK_STAMPS)
     }),
 
     http.get('https://q.trap.jp/api/v3/stamps/:stampId', async ({ params }) => {
-        await simulateNetworkDelay(80, 200)
+        await simulateNetworkDelay(100)
         const { stampId } = params
         const stamp = MOCK_STAMPS.find((s) => s.id === stampId)
         if (!stamp) {
@@ -580,7 +537,7 @@ const traqHandlers = [
     }),
 
     http.get('https://q.trap.jp/api/v3/stamps/:stampId/image', async () => {
-        await simulateNetworkDelay(50, 150)
+        await simulateNetworkDelay(80)
         return new HttpResponse(dummyImageData, {
             headers: {
                 'Content-Type': 'image/png',
@@ -588,9 +545,5 @@ const traqHandlers = [
         })
     }),
 ]
-
-// ============================================
-// 6. エクスポート
-// ============================================
 
 export const handlers = [...oneMonthonHandlers, ...traqHandlers]
