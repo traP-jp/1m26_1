@@ -3,6 +3,8 @@ package handler
 import (
 	"net/http"
 
+	"github.com/gofrs/uuid"
+
 	"github.com/labstack/echo/v4"
 
 	authmiddleware "github.com/traP-jp/1m26_1/backend/internal/middleware"
@@ -11,8 +13,9 @@ import (
 type UserHandler struct{}
 
 type UserResponse struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID     uuid.UUID `json:"id"`
+	UserID string    `json:"userId"`
+	Name   string    `json:"name"`
 }
 
 func NewUserHandler() *UserHandler {
@@ -26,7 +29,8 @@ func (h *UserHandler) GetMe(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, UserResponse{
-		ID:   user.Name,
-		Name: user.Name,
+		UserID: user.UserId,
+		Name:   user.Name,
+		ID:     user.Id,
 	})
 }
