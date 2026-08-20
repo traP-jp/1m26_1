@@ -39,16 +39,16 @@ type Count = int
 // UserProfile defines model for UserProfile.
 type UserProfile struct {
 	// ID UUID
-	ID *uuid.UUID `json:"id,omitempty"`
+	ID uuid.UUID `json:"id,omitempty"`
 
 	// MessageCount 自然数
-	MessageCount *Count `json:"messageCount,omitempty"`
+	MessageCount Count `json:"messageCount,omitempty"`
 
 	// Name ユーザー名
-	Name *UserName `json:"name,omitempty"`
+	Name UserName `json:"name,omitempty"`
 
 	// StampCount 自然数
-	StampCount *Count `json:"stampCount,omitempty"`
+	StampCount Count `json:"stampCount,omitempty"`
 
 	// UserID ユーザーの ID
 	UserID UserID `json:"userId"`
@@ -94,10 +94,10 @@ func (h *UserHandler) GetUser(c echo.Context) error {
 	json.NewDecoder(result2.Body).Decode(&res2)
 	res3 := 0
 	return c.JSON(http.StatusOK, UserProfile{
-		ID: &res.ID,
+		ID: res.ID,
 		UserID: res.UserID,
-		Name: &res.Name,
-		StampCount: &res3, // StampCount あとでやるぞ
-		MessageCount: &res2.MessageCount,
+		Name: res.Name,
+		StampCount: res3, // StampCount あとでやるぞ
+		MessageCount: res2.MessageCount,
 	})
 }
