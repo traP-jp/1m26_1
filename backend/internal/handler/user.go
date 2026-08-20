@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gofrs/uuid"
@@ -53,6 +54,16 @@ type UserProfile struct {
 	UserID UserID `json:"userId"`
 }
 
+type UserProfileReceived struct {
+	ID uuid.UUID `json:"id"`
+	UserID UserID `json:"name"`
+	Name UserName `json:"displayName"`
+}
+
+type MessageCount struct {
+	MessageCount Count `json:"totalHits"`
+}
+
 func (h *UserHandler) GetMe(c echo.Context) error {
 	user, ok := authmiddleware.GetAuthenticatedUser(c)
 	if !ok {
@@ -66,12 +77,27 @@ func (h *UserHandler) GetMe(c echo.Context) error {
 }
 
 func (h *UserHandler) GetUser(c echo.Context) error {
-	var user UserQuery
-	if err := c.Bind(&user); err != nil {
-		return c.JSON(http.StatusInternalServerError, nil)
+	user := c.Param("userId")
+	result, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/users/" + user, nil)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, nil)
 	}
+	defer result.Body.Close()
+	var res UserProfileReceived
+	json.NewDecoder(result.Body).Decode(&res)
+	result2, err2 := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages?from=" + user, nil)
+	if err2 != nil {
+		return c.JSON(http.StatusBadRequest, nil)
+	}
+	defer result2.Body.Close()
+	var res2 MessageCount
+	json.NewDecoder(result2.Body).Decode(&res2)
+	res3 := 0
 	return c.JSON(http.StatusOK, UserProfile{
-		ID: &(user.ID),
-		// uuid から traQ で API たたきますよ
+		ID: &res.ID,
+		UserID: res.UserID,
+		Name: &res.Name,
+		StampCount: &res3, // StampCount あとでやるぞ
+		MessageCount: &res2.MessageCount,
 	})
 }
