@@ -1,15 +1,24 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import { startMockWorker } from './mocks'
-
 import App from './App.vue'
 import router from './router'
+import { startMockWorker } from './mocks'
 import './styles/main.css'
 
 async function bootstrap() {
-    await startMockWorker()
+  // MSW の起動（開発時のみ）
+  await startMockWorker()
 
-    createApp(App).use(createPinia()).use(router).mount('#app')
+  const app = createApp(App)
+  const pinia = createPinia()
+
+  app.use(pinia)
+  app.use(router)
+
+  // 初期ナビゲーション完了を待ってからマウント
+  await router.isReady()
+
+  app.mount('#app')
 }
 
-void bootstrap()
+bootstrap()
