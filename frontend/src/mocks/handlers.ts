@@ -1,86 +1,17 @@
 import { http, HttpResponse, delay } from 'msw'
 import type { components } from '@/gen/api-types'
-
+import type { traQcomponents } from '@/types/traq'
 // ============================================
 // 1. 型定義（traQ API v3 用・手動定義）
 // ============================================
 
-interface UserTag {
-    tagId: string
-    tag: string
-    isLocked: boolean
-    createdAt: string
-    updatedAt: string
-}
-
-type UserAccountState = 0 | 1 | 2
-
-interface UserDetail {
-    id: string
-    state: UserAccountState
-    bot: boolean
-    iconFileId: string
-    displayName: string
-    name: string
-    twitterId: string
-    lastOnline: string | null
-    updatedAt: string
-    tags: UserTag[]
-    groups: string[]
-    bio: string
-    homeChannel: string | null
-}
-
-interface PublicChannel {
-    id: string
-    parentId: string | null
-    archived: boolean
-    force: boolean
-    topic: string
-    name: string
-    children: string[]
-}
-
-interface DMChannel {
-    id: string
-    userId: string
-}
-
-interface ChannelsResponse {
-    public: PublicChannel[]
-    dm: DMChannel[]
-}
-
-interface Stamp {
-    id: string
-    name: string
-    creatorId: string
-    createdAt: string
-    updatedAt: string
-    fileId: string
-    isUnicode: boolean
-    hasThumbnail: boolean
-}
-
-interface MessageStamp {
-    stampId: string
-    count: number
-    createdAt: string
-    updatedAt: string
-    userId: string
-}
-
-interface Message {
-    id: string
-    channelId: string
-    userId: string
-    content: string
-    createdAt: string
-    updatedAt: string
-    stamps: MessageStamp[]
-    pinned: boolean
-    embed: { content: string } | null
-}
+type UserDetail = traQcomponents['schemas']['UserDetail']
+type PublicChannel = traQcomponents['schemas']['PublicChannel']
+type DMChannel = traQcomponents['schemas']['DMChannel']
+type ChannelsResponse = traQcomponents['schemas']['ChannelsResponse']
+type Stamp = traQcomponents['schemas']['Stamp']
+type MessageStamp = traQcomponents['schemas']['MessageStamp']
+type Message = traQcomponents['schemas']['Message']
 
 type ApiUser = components['schemas']['User']
 type ApiUserProfile = components['schemas']['UserProfile']
@@ -302,6 +233,9 @@ const MESSAGE_POOL: Message[] = Array.from({ length: 50 }, (_, index) =>
 
 let pendingNewMessages: Message[] = [generateMockMessage(101, { channelId: 'c-001' })]
 
+const MOCK_ACCESS_TOKEN = 'mock_access_token_' + Date.now()
+const MOCK_REFRESH_TOKEN = 'mock_refresh_token_' + Date.now()
+
 // ============================================
 // 4. 1m26_1 API ハンドラー
 // ============================================
@@ -377,6 +311,20 @@ const oneMonthonHandlers = [
 
     http.get(apiUrl('/api/ws'), () => {
         return HttpResponse.json({ message: 'WebSocket endpoint (handled by real WS)' })
+    }),
+    http.post(apiUrl('/api/oauth/token'), async ({ request }) => {
+        const body = (await request.json()) as { code: string }
+        if (!body.code) {
+            return new HttpResponse(JSON.stringify({ message: 'code is required' }), {
+                status: 400,
+            })
+        }
+        return HttpResponse.json({
+            access_token: MOCK_ACCESS_TOKEN,
+            token_type: 'Bearer',
+            expires_in: 3600,
+            refresh_token: MOCK_REFRESH_TOKEN,
+        })
     }),
 ]
 

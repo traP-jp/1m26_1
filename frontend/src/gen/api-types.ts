@@ -4,6 +4,42 @@
  */
 
 export interface paths {
+    '/api/oauth/token': {
+        parameters: {
+            query?: never
+            header?: never
+            path?: never
+            cookie?: never
+        }
+        get?: never
+        put?: never
+        post: {
+            parameters: {
+                query?: never
+                header?: never
+                path?: never
+                cookie?: never
+            }
+            /** @description OAuth */
+            requestBody: {
+                content: {
+                    'application/json': {
+                        code?: string
+                    }
+                }
+            }
+            responses: {
+                200: components['responses']['OAuth']
+                400: components['responses']['BadRequest']
+                403: components['responses']['Forbidden']
+            }
+        }
+        delete?: never
+        options?: never
+        head?: never
+        patch?: never
+        trace?: never
+    }
     '/api/users/me': {
         parameters: {
             query?: never
@@ -93,13 +129,15 @@ export interface paths {
 export type webhooks = Record<string, never>
 export interface components {
     schemas: {
+        OAuthResponse: {
+            access_token: string
+            /** @example Bearer */
+            token_type: string
+            expires_in: number
+            refresh_token?: string
+        }
         /** @description UUID */
         UUID: string
-        /**
-         * Format: date-time
-         * @description ISO 8601 datetime string
-         */
-        DateTime: string
         /** @description ユーザーの ID */
         UserId: string
         /** @description ユーザー名 */
@@ -245,6 +283,15 @@ export interface components {
                 'application/json': components['schemas']['Error']
             }
         }
+        /** @description 返却できない。 */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown
+            }
+            content: {
+                'application/json': components['schemas']['Error']
+            }
+        }
         /** @description 見つかりませんでした。ざまあ。 */
         NotFound: {
             headers: {
@@ -261,6 +308,15 @@ export interface components {
             }
             content: {
                 'application/json': components['schemas']['Error']
+            }
+        }
+        /** @description OAuth */
+        OAuth: {
+            headers: {
+                [name: string]: unknown
+            }
+            content: {
+                'application/json': components['schemas']['OAuthResponse']
             }
         }
     }
@@ -301,33 +357,18 @@ export interface operations {
             cookie?: never
         }
         requestBody?: never
-        responses: {
-            /** @description 取得成功。 */
-            200: {
-                headers: {
-                    [name: string]: unknown
-                }
-                content: {
-                    'application/json': components['schemas']['UserProfile']
-                }
-            }
-            401: components['responses']['Unauthorized']
-            404: components['responses']['NotFound']
-            500: components['responses']['InternalServerError']
-        }
+        responses: never
     }
     getTimeline: {
         parameters: {
-            query?: never
+            query: {
+                SortByPopularity: boolean
+            }
             header?: never
             path?: never
             cookie?: never
         }
-        requestBody: {
-            content: {
-                'application/json': components['schemas']['SortByPopularity']
-            }
-        }
+        requestBody?: never
         responses: {
             /** @description 取得成功。 */
             200: {
@@ -345,16 +386,14 @@ export interface operations {
     }
     getIn: {
         parameters: {
-            query?: never
+            query: {
+                SortByPopularity: boolean
+            }
             header?: never
             path?: never
             cookie?: never
         }
-        requestBody: {
-            content: {
-                'application/json': components['schemas']['SortByPopularity']
-            }
-        }
+        requestBody?: never
         responses: {
             /** @description 変更あり。 */
             200: {
