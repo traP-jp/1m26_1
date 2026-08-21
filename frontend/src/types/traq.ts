@@ -110,6 +110,13 @@ interface ChannelsResponse {
 }
 
 /**
+ * チャンネルパス情報
+ */
+interface ChannelPath {
+    path: string
+}
+
+/**
  * スタンプ情報
  * GET /stamps のレスポンス要素
  */
@@ -197,6 +204,8 @@ export interface traQcomponents {
         DMChannel: DMChannel
         /** チャンネル一覧レスポンス */
         ChannelsResponse: ChannelsResponse
+        /** チャンネルパス情報 */
+        ChannelPath: ChannelPath
         /** スタンプ情報 */
         Stamp: Stamp
         /** メッセージスタンプ情報 */

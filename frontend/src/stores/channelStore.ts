@@ -5,9 +5,11 @@ import { traqApi } from '../lib/api/traq'
 import type { traQcomponents } from '../types/traq'
 
 type Channel = traQcomponents['schemas']['PublicChannel']
+
 export const useChannelStore = defineStore('channel', () => {
     // id -> Channel のマップ
     const channels = ref<Map<string, Channel>>(new Map())
+    const channelPaths = ref<Map<string, string>>(new Map())
     const isLoading = ref(false)
     let fetchPromise: Promise<void> | undefined
 
@@ -18,9 +20,15 @@ export const useChannelStore = defineStore('channel', () => {
         isLoading.value = true
         fetchPromise = traqApi
             .getChannels()
-            .then((response) => {
-            // public チャンネルからチャンネル情報を収集（DMは現状使わない）
+            .then(async (response) => {
+                // public チャンネルからチャンネル情報を収集（DMは現状使わない）
                 channels.value = new Map(response.public.map((channel) => [channel.id, channel]))
+                await Promise.all(
+                    response.public.map(async (channel) => {
+                        const { path } = await traqApi.getChannelPath(channel.id)
+                        channelPaths.value.set(channel.id, path)
+                    }),
+                )
             })
             .finally(() => {
                 isLoading.value = false
@@ -31,7 +39,12 @@ export const useChannelStore = defineStore('channel', () => {
     }
 
     const getChannelName = (channelId: string): string => {
-        return channels.value.get(channelId)?.name || channelId.slice(0, 8)
+        console.log(channelPaths.value.get(channelId))
+        return (
+            channelPaths.value.get(channelId) ||
+            channels.value.get(channelId)?.name ||
+            channelId.slice(0, 8)
+        )
     }
 
     const getChannel = (channelId: string): Channel | undefined => {
@@ -40,6 +53,7 @@ export const useChannelStore = defineStore('channel', () => {
 
     return {
         channels,
+        channelPaths,
         isLoading,
         fetchChannels,
         getChannelName,

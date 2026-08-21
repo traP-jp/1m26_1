@@ -30,7 +30,7 @@ const channelName = computed(() => channelStore.getChannelName(props.message.cha
         <div class="user-info">
             <span class="user-name">{{ userName }}</span>
             <br />
-            <span class="channel-name">{{ channelName }}</span>
+            <span class="channel-name">#{{ channelName }}</span>
         </div>
         <time class="timestamp">{{ formatDate(message.createdAt) }}</time>
     </header>
