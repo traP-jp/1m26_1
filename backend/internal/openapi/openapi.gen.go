@@ -404,11 +404,13 @@ type PostAPIOauthTokenJSONBody struct {
 // GetTimelineParams defines parameters for GetTimeline.
 type GetTimelineParams struct {
 	SortByPopularity bool `form:"SortByPopularity" json:"SortByPopularity"`
+	All              bool `form:"all" json:"all"`
 }
 
 // GetInParams defines parameters for GetIn.
 type GetInParams struct {
 	SortByPopularity bool `form:"SortByPopularity" json:"SortByPopularity"`
+	All              bool `form:"all" json:"all"`
 }
 
 // PostAPIOauthTokenJSONRequestBody defines body for PostAPIOauthToken for application/json ContentType.
