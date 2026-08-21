@@ -41,6 +41,7 @@ onMounted(async () => {
     // ============================================
     if (authStore.isAuthenticated) {
         isLoading.value = false
+        await timeline.fetchTimeline()
     } else {
         sessionStorage.setItem('login_redirect', route.fullPath)
         await initiateLogin()

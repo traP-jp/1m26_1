@@ -154,7 +154,7 @@ interface MessageStamp {
  * GET /channels/{channelId}/messages のレスポンス要素
  * GET /messages/{messageId} のレスポンス
  */
-interface Message {
+export interface Message {
     /** メッセージUUID */
     id: string
     /** 投稿先チャンネルUUID */
