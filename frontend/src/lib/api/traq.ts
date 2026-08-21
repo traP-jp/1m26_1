@@ -11,18 +11,38 @@ const TRAQ_API_BASE = 'https://q.trap.jp/api/v3'
 // ============================================
 
 type ChannelsResponse = traQcomponents['schemas']['ChannelsResponse']
+type ChannelPath = traQcomponents['schemas']['ChannelPath']
 type Stamp = traQcomponents['schemas']['Stamp']
 type Message = traQcomponents['schemas']['Message']
-
+type User = traQcomponents['schemas']['UserDetail']
 // ============================================
 // 3. traQ API クライアント関数
 // ============================================
+
+/**
+ * ユーザー情報を取得する
+ */
+export async function getUsers(): Promise<User[]> {
+    const response = await apiClient.get<User[]>(
+        `${TRAQ_API_BASE}/users`,
+        { params: { includeSuspended: false } }, // 有効ユーザーのみ
+    )
+    return response.data
+}
 
 /**
  * チャンネル一覧を取得する。
  */
 export async function getChannels(): Promise<ChannelsResponse> {
     const response = await apiClient.get<ChannelsResponse>(`${TRAQ_API_BASE}/channels`)
+    return response.data
+}
+
+/**
+ * 指定されたチャンネルのフルパスを取得する。
+ */
+export async function getChannelPath(channelId: string): Promise<ChannelPath> {
+    const response = await apiClient.get<ChannelPath>(`${TRAQ_API_BASE}/channels/${channelId}/path`)
     return response.data
 }
 
@@ -110,10 +130,12 @@ export async function unpinStamp(stampId: string, messageId: string): Promise<vo
 
 export const traqApi = {
     getChannels,
+    getChannelPath,
     getChannelMessages,
     getMessage,
     getStamps,
     getStampImage,
     pinStamp,
     unpinStamp,
+    getUsers,
 } as const

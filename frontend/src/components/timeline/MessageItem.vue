@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import type { TimelineMessage } from '../../types/message'
-import AttachmentList from './AttachmentList.vue'
+import type { Message } from '../../types/traq'
+// import AttachmentList from './AttachmentList.vue';
+// AttachmentListはまだ使わないのでコメントアウト
 import MessageBody from './MessageBody.vue'
 import MessageHeader from './MessageHeader.vue'
 import StampList from './StampList.vue'
 
-defineProps<{ message: TimelineMessage }>()
+defineProps<{ message: Message }>()
 </script>
 
 <template>
     <article class="message-item">
         <MessageHeader :message="message" />
         <MessageBody :content="message.content" />
-        <AttachmentList :attachments="message.attachments" />
         <StampList :stamps="message.stamps" />
     </article>
 </template>
