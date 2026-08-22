@@ -2,6 +2,38 @@
     font-family: system-ui, sans-serif;
     color: #1f2937;
     background: #f8fafc;
+
+    /* token */
+    --gray-0: #FFFFFF;
+    --gray-100: #FAFAFA;
+    --gray-200: #EBEBEB;
+    --gray-300: #D4D4D9;
+    --gray-400: #B6B6BF;
+    --gray-500: #9595A6;
+    --gray-600: #626273;
+    --gray-700: #474759;
+    --gray-800: #242433;
+    /* semantics */
+    --background: var(--gray-0);
+    --shadow: rgba(0, 0, 0, 0.1);
+    --color-primary: #FFAC47;
+    --color-favorite: #FE6F89;
+    --icon-secondary: #FFBA66;
+    --post-background: var(--gray-100);
+    --surface-primary: var(--color-primary);
+    --surface-secondary: var(--gray-200);
+    --surface-border-secondary: var(--gray-200);
+    --surface-border-primary: var(--gray-400);
+    --surface-translucent: rgba(255, 255, 255, 0.8);
+    --text-primary: var(--gray-800);
+    --text-secondary: var(--gray-600);
+    --text-positive: #58BF35;
+    --text-negative: #F76767;
+    --text-size-s: 13px; 
+    --text-size-m: 16px;
+    --text-size-l: 20px;
+    --text-button-fill-text: var(--gray-0);
+    --text-button-fill-background: var(--color-primary);
 }
 * {
     box-sizing: border-box;
