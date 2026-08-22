@@ -477,9 +477,12 @@ components:
         StampUpdatedBody:
             type: object
             properties:
+                messageId:
+                    $ref: '#/components/schemas/UUID'
                 stamps:
                     $ref: '#/components/schemas/Stamps'
             required:
+                - messageId
                 - stamps
 
         UsernameChangedBody:

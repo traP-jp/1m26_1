@@ -273,7 +273,9 @@ type StampInfoChangedEventType string
 
 // StampUpdatedBody defines model for StampUpdatedBody.
 type StampUpdatedBody struct {
-	Stamps Stamps `json:"stamps"`
+	// MessageID UUID
+	MessageID UUID   `json:"messageId"`
+	Stamps    Stamps `json:"stamps"`
 }
 
 // StampUpdatedEvent defines model for StampUpdatedEvent.
