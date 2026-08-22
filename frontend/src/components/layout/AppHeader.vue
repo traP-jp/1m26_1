@@ -42,6 +42,7 @@ onUnmounted(() => {
     width: 100vw;
 
     display: flex;
+    gap: 0 !important; 
     flex-direction: column;
     opacity: 0.1;
     transition: opacity 150ms ease;
