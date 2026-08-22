@@ -932,7 +932,18 @@ const MESSAGE_POOL: Message[] = Array.from({ length: 50 }, (_, index) =>
 )
 
 let pendingNewMessages: Message[] = [
-    generateMockMessage(101, { channelId: 'f2bea4b7-8a2d-43ba-b84b-f53aea3d43c5' }),
+    generateMockMessage(101, {
+        channelId: 'f2bea4b7-8a2d-43ba-b84b-f53aea3d43c5',
+        content: '✨ 新着メッセージその1！',
+    }),
+    generateMockMessage(102, {
+        channelId: 'f2bea4b7-8a2d-43ba-b84b-f53aea3d43c5',
+        content: '📢 新着メッセージその2！',
+    }),
+    generateMockMessage(103, {
+        channelId: '019db58b-5bb0-743f-ab67-fd1bc2ab9a25',
+        content: '🎉 1-Monthon進捗どうですか？',
+    }),
 ]
 
 const MOCK_ACCESS_TOKEN = 'mock_access_token_' + Date.now()
@@ -970,7 +981,7 @@ const oneMonthonHandlers = [
     http.get(apiUrl('/api/timeline'), async ({ request }) => {
         await simulateNetworkDelay(400)
         const isPopular: ApiSortByPopularity =
-            new URL(request.url).searchParams.get('sortByPopularity') === 'true'
+            new URL(request.url).searchParams.get('SortByPopularity') === 'true'
 
         let messageIds = MESSAGE_POOL.map((m) => m.id)
         if (isPopular) {
@@ -1000,15 +1011,19 @@ const oneMonthonHandlers = [
     http.get(apiUrl('/api/timeline/new'), async () => {
         await simulateNetworkDelay(200)
 
-        if (pendingNewMessages.length === 0) {
-            return new HttpResponse(null, { status: 204 })
+        // 新着がある場合
+        if (pendingNewMessages.length > 0) {
+            const newIds = pendingNewMessages.map((m) => m.id)
+            // 新着メッセージを MESSAGE_POOL の先頭に追加（次回以降の /timeline で取得できるように）
+            MESSAGE_POOL.unshift(...pendingNewMessages)
+            // 新着リストをクリア（一度だけの動作）
+            pendingNewMessages = []
+            const response: ApiTimelineMessage = { messages: newIds }
+            return HttpResponse.json(response)
         }
 
-        const newIds = pendingNewMessages.map((m) => m.id)
-        MESSAGE_POOL.unshift(...pendingNewMessages)
-        pendingNewMessages = []
-        const response: ApiTimelineMessage = { messages: newIds }
-        return HttpResponse.json(response)
+        // 新着がない場合
+        return new HttpResponse(null, { status: 204 })
     }),
 
     http.get(apiUrl('/api/ws'), () => {
