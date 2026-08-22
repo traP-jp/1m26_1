@@ -36,27 +36,26 @@ const channelName = computed(() => channelStore.getChannelName(props.message.cha
 }
 .user-name {
     font-weight: 600;
-    color: #1a1d23;
+    color: var(--text-primary);
     white-space: nowrap;
     grid-column: 1;
     grid-row: 1;
-    font-size: 15px;
+    font-size: var(--text-size-m);
 }
 .timestamp {
-    font-size: 12px;
-    color: #8e96a3;
+    font-size: var(--text-size-s);
+    color: var(--text-secondary);
     white-space: nowrap;
     grid-column: 3;
     grid-row: 1;
-    font-size: 12px;
 }
 .channel-name {
-    color: #6b7a8f;
+    font-size: var(--text-size-s);
+    color: var(--text-secondary);
+    font-weight: 500;
     overflow: hidden;
     white-space: nowrap;
     grid-column: 1;
     grid-row: 2;
-    font-size: 12px;
-    font-weight: 500;
 }
 </style>

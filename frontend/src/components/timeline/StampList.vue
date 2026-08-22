@@ -47,11 +47,11 @@ const stampStore = useStampStore()
     display: flex;
     align-items: center;
     gap: 3px;
-    background: #f0f2f5;
+    background: var(--surface-secondary);
     border-radius: 4px;
     padding: 2px 4px;
     border-radius: 4px;
-    font-size: 15px;
+    font-size: var(--text-size-m);
     height:24px;
 }
 .stamp-emoji {
@@ -64,13 +64,13 @@ const stampStore = useStampStore()
     border-radius: 4px;
 }
 .stamp-name-fallback {
-    font-size: 12px;
-    color: #6b7a8f;
+    font-size: var(--text-size-s);
+    color: var(--text-secondary);
 }
 .stamp-count {
-    font-size: 15px;
+    font-size: var(--text-size-m);
     font-weight: 600;
-    color: #6b7a8f;
+    color: var(--text-secondary);
     min-width: 16px;
     text-align: center;
 }

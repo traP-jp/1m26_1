@@ -9,6 +9,6 @@ defineProps<{ content: string }>()
 <style scoped>
 .message-body{
     margin: 0;
-    font-size: 15px;
+    font-size: var(--text-size-m);
 }
 </style>

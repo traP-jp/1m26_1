@@ -36,21 +36,22 @@ const iconUrl = computed(() => userStore.getIconUrl(props.message.userId))
 </template>
 
 <style scoped>
-.message-item{
+.message-item {
     display: flex;
-    gap:10px;
+    gap: 10px;
     padding: 12px 16px;
+    border-bottom: 1px solid var(--surface-border-secondary);
 }
 .avatar-placeholder {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: #e2e8f0;
+    background: var(--gray-300);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 18px; /* アイコンサイズ */
-    color: #6b7a8f;
+    color: var(--text-secondary);
     flex-shrink: 0;
 }
 .avatar {
@@ -59,7 +60,10 @@ const iconUrl = computed(() => userStore.getIconUrl(props.message.userId))
     height: 40px;
     border-radius: 50%;
 }
-.message-area{
+.message-area {
     flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 </style>

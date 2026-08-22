@@ -72,10 +72,6 @@ a {
 .page {
     padding: 1rem;
 }
-.message-item {
-    padding: 1rem 0;
-    border-bottom: 1px solid #e5e7eb;
-}
 .message-header {
     display: flex;
     justify-content: space-between;
