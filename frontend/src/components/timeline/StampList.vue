@@ -40,21 +40,22 @@ const stampStore = useStampStore()
 .stamp-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 6px;
+    gap: 8px;
+    padding: 4px 0;
 }
 .stamp-item {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 3px;
     background: #f0f2f5;
-    padding: 2px 10px 2px 6px;
-    border-radius: 30px;
-    font-size: 14px;
-    border: 1px solid #eef0f3;
+    border-radius: 4px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 15px;
+    height:24px;
 }
 .stamp-emoji {
-    font-size: 16px;
+    font-size: 18px;
 }
 .stamp-image {
     width: 24px;
@@ -67,7 +68,7 @@ const stampStore = useStampStore()
     color: #6b7a8f;
 }
 .stamp-count {
-    font-size: 12px;
+    font-size: 15px;
     font-weight: 600;
     color: #6b7a8f;
     min-width: 16px;
