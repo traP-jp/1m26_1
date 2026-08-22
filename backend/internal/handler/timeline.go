@@ -8,7 +8,6 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/labstack/echo/v4"
-	"google.golang.org/genproto/googleapis/type/datetime"
 )
 
 type TimelineHandler struct {}
