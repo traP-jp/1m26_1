@@ -175,6 +175,12 @@ type Error struct {
 
 // MessageCreatedBody defines model for MessageCreatedBody.
 type MessageCreatedBody struct {
+	// IDFirst UUID
+	IDFirst UUID `json:"idFirst"`
+
+	// IDSecond UUID
+	IDSecond *UUID `json:"idSecond,omitempty"`
+
 	// MessageCount 自然数
 	MessageCount Count `json:"messageCount"`
 }

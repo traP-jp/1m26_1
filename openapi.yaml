@@ -451,8 +451,13 @@ components:
             properties:
                 messageCount:
                     $ref: '#/components/schemas/Count'
+                idFirst:
+                    $ref: '#/components/schemas/UUID'
+                idSecond:
+                    $ref: '#/components/schemas/UUID'
             required:
                 - messageCount
+                - idFirst
 
         MessageDeletedBody:
             type: object
