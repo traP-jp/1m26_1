@@ -34,9 +34,11 @@
     --text-size-l: 20px;
     --text-button-fill-text: var(--gray-0);
     --text-button-fill-background: var(--color-primary);
+    --text-font-family-default: "Inter", "M PLUS 1p", sans-serif;
 }
 * {
     box-sizing: border-box;
+    font-family: var(--text-font-family-default);
 }
 body {
     margin: 0;
