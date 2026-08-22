@@ -10,10 +10,14 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type TimelineHandler struct {}
+type TimelineHandler struct {
+	lastUpdate time.Time
+}
 
 func NewTimelineHandler() *TimelineHandler {
-	return &TimelineHandler{}
+	return &TimelineHandler{
+		lastUpdate: time.Now(),
+	}
 }
 
 type TimelineReceived struct {
