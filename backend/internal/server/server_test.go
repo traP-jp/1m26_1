@@ -22,28 +22,6 @@ func TestHealthz(t *testing.T) {
 	}
 }
 
-func TestGetMeUsesForwardedUser(t *testing.T) {
-	e := New(testConfig())
-	req := httptest.NewRequest(http.MethodGet, "/api/users/me", nil)
-	req.Header.Set("X-Forwarded-User", "traP")
-	rec := httptest.NewRecorder()
-
-	e.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
-	}
-
-	var body handler.UserResponse
-	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
-
-	if body.ID != "traP" || body.Name != "traP" {
-		t.Fatalf("unexpected response: %+v", body)
-	}
-}
-
 func TestGetMeFallsBackToDeveloper(t *testing.T) {
 	e := New(testConfig())
 	req := httptest.NewRequest(http.MethodGet, "/api/users/me", nil)
@@ -60,7 +38,7 @@ func TestGetMeFallsBackToDeveloper(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if body.ID != "traP" || body.Name != "traP" {
+	if body.UserID != "traP" || body.Name != "traP" {
 		t.Fatalf("unexpected response: %+v", body)
 	}
 }

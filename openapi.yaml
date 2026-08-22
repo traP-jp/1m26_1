@@ -90,6 +90,11 @@ paths:
                   schema:
                       type: boolean
                   required: true
+                - name: all
+                  in: query
+                  schema:
+                      type: boolean
+                  required: true
             responses:
                 '200':
                     description: 取得成功。
@@ -112,6 +117,11 @@ paths:
             operationId: getIn
             parameters:
                 - name: SortByPopularity
+                  in: query
+                  schema:
+                      type: boolean
+                  required: true
+                - name: all
                   in: query
                   schema:
                       type: boolean
@@ -441,8 +451,13 @@ components:
             properties:
                 messageCount:
                     $ref: '#/components/schemas/Count'
+                idFirst:
+                    $ref: '#/components/schemas/UUID'
+                idSecond:
+                    $ref: '#/components/schemas/UUID'
             required:
                 - messageCount
+                - idFirst
 
         MessageDeletedBody:
             type: object
@@ -467,9 +482,12 @@ components:
         StampUpdatedBody:
             type: object
             properties:
+                messageId:
+                    $ref: '#/components/schemas/UUID'
                 stamps:
                     $ref: '#/components/schemas/Stamps'
             required:
+                - messageId
                 - stamps
 
         UsernameChangedBody:
