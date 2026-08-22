@@ -30,7 +30,7 @@ const loadNewMessages = () => {
 /* バナー全体 */
 .new-message-banner {
     position: fixed;
-    top: 20px;
+    top: 128px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 9999;
