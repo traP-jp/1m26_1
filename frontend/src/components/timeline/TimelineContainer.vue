@@ -7,26 +7,22 @@ defineProps<{ messages: Message[] }>()
 </script>
 
 <template>
-      <section class="timeline" aria-label="タイムライン">
-    <!-- ローディング -->
-    <div v-if="store.isLoading" class="state-message">読み込み中...</div>
+    <section class="timeline" aria-label="タイムライン">
+        <!-- ローディング -->
+        <div v-if="store.isLoading" class="state-message">読み込み中...</div>
 
-    <!-- エラー -->
-    <div v-else-if="store.error" class="state-message error">
-      {{ store.error }}
-      <button @click="store.fetchTimeline()">再読み込み</button>
-    </div>
+        <!-- エラー -->
+        <div v-else-if="store.error" class="state-message error">
+            {{ store.error }}
+            <button @click="store.fetchTimeline()">再読み込み</button>
+        </div>
 
-    <!-- 空 -->
-    <div v-else-if="store.messages.length === 0" class="state-message">
-      メッセージがありません
-    </div>
+        <!-- 空 -->
+        <div v-else-if="store.messages.length === 0" class="state-message">
+            メッセージがありません
+        </div>
 
-    <!-- メッセージ一覧 -->
-    <MessageItem
-      v-for="message in store.messages"
-      :key="message.id"
-      :message="message"
-    />
-  </section>
+        <!-- メッセージ一覧 -->
+        <MessageItem v-for="message in store.messages" :key="message.id" :message="message" />
+    </section>
 </template>

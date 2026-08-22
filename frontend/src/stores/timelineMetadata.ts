@@ -10,9 +10,13 @@ import { useUserStore } from './userStore'
  * 同じデータに対する通信は 1 回だけになる。
  */
 export const initializeTimelineMetadata = async (pinia?: Pinia) => {
-  const userStore = useUserStore(pinia)
-  const channelStore = useChannelStore(pinia)
-  const stampStore = useStampStore(pinia)
+    const userStore = useUserStore(pinia)
+    const channelStore = useChannelStore(pinia)
+    const stampStore = useStampStore(pinia)
 
-  await Promise.all([userStore.fetchUsers(), channelStore.fetchChannels(), stampStore.fetchStamps()])
+    await Promise.all([
+        userStore.fetchUsers(),
+        channelStore.fetchChannels(),
+        stampStore.fetchStamps(),
+    ])
 }
