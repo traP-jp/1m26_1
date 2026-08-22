@@ -3,6 +3,7 @@ module github.com/traP-jp/1m26_1/backend
 go 1.26
 
 require (
+	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/labstack/echo/v4 v4.15.4
 	github.com/oapi-codegen/runtime v1.7.0
 )

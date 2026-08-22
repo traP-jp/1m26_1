@@ -175,6 +175,12 @@ type Error struct {
 
 // MessageCreatedBody defines model for MessageCreatedBody.
 type MessageCreatedBody struct {
+	// IDFirst UUID
+	IDFirst UUID `json:"idFirst"`
+
+	// IDSecond UUID
+	IDSecond *UUID `json:"idSecond,omitempty"`
+
 	// MessageCount 自然数
 	MessageCount Count `json:"messageCount"`
 }
@@ -273,7 +279,9 @@ type StampInfoChangedEventType string
 
 // StampUpdatedBody defines model for StampUpdatedBody.
 type StampUpdatedBody struct {
-	Stamps Stamps `json:"stamps"`
+	// MessageID UUID
+	MessageID UUID   `json:"messageId"`
+	Stamps    Stamps `json:"stamps"`
 }
 
 // StampUpdatedEvent defines model for StampUpdatedEvent.
@@ -404,11 +412,13 @@ type PostAPIOauthTokenJSONBody struct {
 // GetTimelineParams defines parameters for GetTimeline.
 type GetTimelineParams struct {
 	SortByPopularity bool `form:"SortByPopularity" json:"SortByPopularity"`
+	All              bool `form:"all" json:"all"`
 }
 
 // GetInParams defines parameters for GetIn.
 type GetInParams struct {
 	SortByPopularity bool `form:"SortByPopularity" json:"SortByPopularity"`
+	All              bool `form:"all" json:"all"`
 }
 
 // PostAPIOauthTokenJSONRequestBody defines body for PostAPIOauthToken for application/json ContentType.
