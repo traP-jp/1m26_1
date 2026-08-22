@@ -11,65 +11,51 @@ const userStore = useUserStore()
 const channelStore = useChannelStore()
 
 const userName = computed(() => userStore.getUserName(props.message.userId))
-const iconUrl = computed(() => userStore.getIconUrl(props.message.userId))
 const channelName = computed(() => channelStore.getChannelName(props.message.channelId))
 </script>
 
 <template>
     <header class="message-header">
-        <img
-            v-if="iconUrl"
-            :src="iconUrl"
-            alt="avatar"
-            class="avatar"
-            referrerpolicy="no-referrer"
-        />
-        <div class="avatar-placeholder" v-else>
-            <i class="fas fa-user"></i>
-        </div>
         <div class="user-info">
             <span class="user-name">{{ userName }}</span>
-            <br />
+            <time class="timestamp">{{ formatDate(message.createdAt) }}</time>
             <span class="channel-name">#{{ channelName }}</span>
         </div>
-        <time class="timestamp">{{ formatDate(message.createdAt) }}</time>
     </header>
 </template>
 
 <style scoped>
-.avatar-placeholder {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #e2e8f0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px; /* アイコンサイズ */
-    color: #6b7a8f;
-    flex-shrink: 0;
-}
 .user-info {
     flex: 1;
-    display: flex;
-    gap: 8px;
-    font-size: 14px;
+    display: grid;
+    padding: 6px;
+    row-gap: 4px;
+    column-gap: 4px;
+    grid-template-rows: repeat(2, fit-content(100%));
+    grid-template-columns: 1fr minmax(0, 1fr) 1fr;
 }
-
 .user-name {
     font-weight: 600;
-    color: #1a1d23;
+    color: var(--text-primary);
+    white-space: nowrap;
+    grid-column: 1;
+    grid-row: 1;
+    font-size: var(--text-size-m);
 }
-
-.channel-name {
-    color: #6b7a8f;
-}
-
 .timestamp {
-    font-size: 12px;
-    color: #8e96a3;
+    font-size: var(--text-size-s);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    grid-column: 3;
+    grid-row: 1;
 }
-.avatar {
-    object-fit: cover;
+.channel-name {
+    font-size: var(--text-size-s);
+    color: var(--text-secondary);
+    font-weight: 500;
+    overflow: hidden;
+    white-space: nowrap;
+    grid-column: 1;
+    grid-row: 2;
 }
 </style>
