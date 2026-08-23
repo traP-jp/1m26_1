@@ -30,7 +30,7 @@ const iconUrl = computed(() => userStore.getIconUrl(props.message.userId))
         <div class="message-area">
             <MessageHeader :message="message" />
             <MessageBody :content="message.content" />
-            <StampList :stamps="message.stamps" />
+            <StampList :stamps="message.stamps" :message-id="message.id"/>
         </div>
     </article>
 </template>
