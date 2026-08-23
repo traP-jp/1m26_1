@@ -1,7 +1,0 @@
-package: openapi
-generate:
-    models: true
-output: backend/internal/openapi/openapi.gen.go
-output-options:
-    name-normalizer: ToCamelCaseWithInitialisms
-    skip-prune: true

@@ -20,9 +20,3 @@ backend/tmp/
 *.out
 
 go.work
-
-.env
-.env.local
-.env.*.local
-*.env
-*.env.local

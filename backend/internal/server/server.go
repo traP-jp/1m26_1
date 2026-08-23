@@ -32,15 +32,10 @@ func New(cfg config.Config) *echo.Echo {
 func registerRoutes(e *echo.Echo) {
 	healthHandler := handler.NewHealthHandler()
 	userHandler := handler.NewUserHandler()
-	timelineHandler := handler.NewTimelineHandler()
 
 	e.GET("/healthz", healthHandler.Get)
 
 	api := e.Group("/api")
 	api.Use(authmiddleware.ForwardedUser)
-	api.GET("/users/me", userHandler.GetMe)
-	api.GET("/users/:userId", userHandler.GetUser)
-	api.POST("/oauth/token", handler.OAuth)
-	api.GET("/timeline", timelineHandler.GetTimeline)
-	api.GET("/timeline/new", timelineHandler.GetIn)
+	api.GET("/me", userHandler.GetMe)
 }
