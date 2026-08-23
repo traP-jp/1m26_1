@@ -10,7 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type TimelineHandler struct {}
+type TimelineHandler struct{}
 
 func NewTimelineHandler() *TimelineHandler {
 	return &TimelineHandler{}
@@ -18,9 +18,9 @@ func NewTimelineHandler() *TimelineHandler {
 
 type TimelineReceived struct {
 	MessageID uuid.UUID `json:"id"`
-	UserID uuid.UUID `json:"userId"`
+	UserID    uuid.UUID `json:"userId"`
 	ChannelID uuid.UUID `json:"channelId"`
-	Content string `json:"content"`
+	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -30,7 +30,7 @@ type TimelineResponse struct {
 }
 
 func GetActivity(sbp, all string) (*[]TimelineReceived, error) {
-	result, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/activity/timeline?all=" + all, nil)
+	result, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/activity/timeline?all="+all, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func GetActivity(sbp, all string) (*[]TimelineReceived, error) {
 
 func (h *TimelineHandler) GetTimeline(c echo.Context) error {
 	params := c.QueryParams()
-	if !(params.Has("sortByPopularity")||params.Has("all")) {
+	if !(params.Has("sortByPopularity") || params.Has("all")) {
 		return c.JSON(http.StatusBadRequest, nil)
 	}
 	res, err := GetActivity(params.Get("sortByPopularity"), params.Get("all"))
@@ -58,7 +58,7 @@ func (h *TimelineHandler) GetTimeline(c echo.Context) error {
 	for i, v := range *res {
 		result[i] = v.MessageID
 	}
-	return c.JSON(http.StatusOK, TimelineResponse {
+	return c.JSON(http.StatusOK, TimelineResponse{
 		Messages: result,
 	})
 }
