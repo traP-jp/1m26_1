@@ -8,9 +8,9 @@ require (
 	github.com/oapi-codegen/runtime v1.7.0
 	google.golang.org/genproto v0.0.0-20260819154853-08b0e4226688
 )
+require github.com/labstack/echo/v4 v4.15.4
 
 require (
-	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/dprotaso/go-yit v0.0.0-20220510233725-9ba8df137936 // indirect
 	github.com/getkin/kin-openapi v0.144.0 // indirect
 	github.com/go-openapi/jsonpointer v0.22.5 // indirect

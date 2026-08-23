@@ -3,16 +3,13 @@ package middleware
 import (
 	"strings"
 
-	"github.com/gofrs/uuid"
 	"github.com/labstack/echo/v4"
 )
 
 const userContextKey = "authenticatedUser"
 
 type AuthenticatedUser struct {
-	Name   string
-	UserId string
-	Id     uuid.UUID
+	Name string
 }
 
 func ForwardedUser(next echo.HandlerFunc) echo.HandlerFunc {
