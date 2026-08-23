@@ -171,7 +171,7 @@ func GetStamps(id string) (*Stamps, error) {
 
 func (h *TimelineHandler) GetTimeline(c echo.Context) error {
 	params := c.QueryParams()
-	if !(params.Has("sortByPopularity") || params.Has("all")) {
+	if !(params.Has("sortByPopularity")) {
 		return c.JSON(http.StatusBadRequest, nil)
 	}
 	res, _, bm, err := GetActivity(params.Get("sortByPopularity"), "true", "before="+h.bottomMessage.String())
