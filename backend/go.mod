@@ -6,7 +6,6 @@ require (
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/labstack/echo/v4 v4.15.4
 	github.com/oapi-codegen/runtime v1.7.0
-	google.golang.org/genproto v0.0.0-20260819154853-08b0e4226688
 )
 
 require (
@@ -38,7 +37,6 @@ require (
 	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.47.0 // indirect
-	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
