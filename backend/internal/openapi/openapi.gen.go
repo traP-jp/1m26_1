@@ -9,6 +9,21 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// Defines values for CountReachingThresholdEventType.
+const (
+	CountReachingThresholdEventTypeCountReachingThreshold CountReachingThresholdEventType = "CountReachingThreshold"
+)
+
+// Valid indicates whether the value is a known member of the CountReachingThresholdEventType enum.
+func (e CountReachingThresholdEventType) Valid() bool {
+	switch e {
+	case CountReachingThresholdEventTypeCountReachingThreshold:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MessageCreatedEventType.
 const (
 	MessageCreatedEventTypeMessageCreated MessageCreatedEventType = "MessageCreated"
@@ -131,19 +146,22 @@ func (e UsernameChangedEventType) Valid() bool {
 
 // Defines values for WebSocketEventType.
 const (
-	WebSocketEventTypeMessageCreated     WebSocketEventType = "MessageCreated"
-	WebSocketEventTypeMessageDeleted     WebSocketEventType = "MessageDeleted"
-	WebSocketEventTypeMessageEdited      WebSocketEventType = "MessageEdited"
-	WebSocketEventTypeStampImageReplaced WebSocketEventType = "StampImageReplaced"
-	WebSocketEventTypeStampInfoChanged   WebSocketEventType = "StampInfoChanged"
-	WebSocketEventTypeStampUpdated       WebSocketEventType = "StampUpdated"
-	WebSocketEventTypeUserIconReplaced   WebSocketEventType = "UserIconReplaced"
-	WebSocketEventTypeUsernameChanged    WebSocketEventType = "UsernameChanged"
+	WebSocketEventTypeCountReachingThreshold WebSocketEventType = "CountReachingThreshold"
+	WebSocketEventTypeMessageCreated         WebSocketEventType = "MessageCreated"
+	WebSocketEventTypeMessageDeleted         WebSocketEventType = "MessageDeleted"
+	WebSocketEventTypeMessageEdited          WebSocketEventType = "MessageEdited"
+	WebSocketEventTypeStampImageReplaced     WebSocketEventType = "StampImageReplaced"
+	WebSocketEventTypeStampInfoChanged       WebSocketEventType = "StampInfoChanged"
+	WebSocketEventTypeStampUpdated           WebSocketEventType = "StampUpdated"
+	WebSocketEventTypeUserIconReplaced       WebSocketEventType = "UserIconReplaced"
+	WebSocketEventTypeUsernameChanged        WebSocketEventType = "UsernameChanged"
 )
 
 // Valid indicates whether the value is a known member of the WebSocketEventType enum.
 func (e WebSocketEventType) Valid() bool {
 	switch e {
+	case WebSocketEventTypeCountReachingThreshold:
+		return true
 	case WebSocketEventTypeMessageCreated:
 		return true
 	case WebSocketEventTypeMessageDeleted:
@@ -167,6 +185,15 @@ func (e WebSocketEventType) Valid() bool {
 
 // Count 自然数
 type Count = int
+
+// CountReachingThresholdEvent defines model for CountReachingThresholdEvent.
+type CountReachingThresholdEvent struct {
+	Body map[string]interface{}          `json:"body"`
+	Type CountReachingThresholdEventType `json:"type"`
+}
+
+// CountReachingThresholdEventType defines model for CountReachingThresholdEvent.Type.
+type CountReachingThresholdEventType string
 
 // Error defines model for Error.
 type Error struct {
@@ -622,6 +649,32 @@ func (t *UserWebSocketEvent) FromStampImageReplacedEvent(v StampImageReplacedEve
 
 // MergeStampImageReplacedEvent performs a merge with any union data inside the UserWebSocketEvent, using the provided StampImageReplacedEvent
 func (t *UserWebSocketEvent) MergeStampImageReplacedEvent(v StampImageReplacedEvent) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsCountReachingThresholdEvent returns the union data inside the UserWebSocketEvent as a CountReachingThresholdEvent
+func (t UserWebSocketEvent) AsCountReachingThresholdEvent() (CountReachingThresholdEvent, error) {
+	var body CountReachingThresholdEvent
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromCountReachingThresholdEvent overwrites any union data inside the UserWebSocketEvent as the provided CountReachingThresholdEvent
+func (t *UserWebSocketEvent) FromCountReachingThresholdEvent(v CountReachingThresholdEvent) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeCountReachingThresholdEvent performs a merge with any union data inside the UserWebSocketEvent, using the provided CountReachingThresholdEvent
+func (t *UserWebSocketEvent) MergeCountReachingThresholdEvent(v CountReachingThresholdEvent) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err

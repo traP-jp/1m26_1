@@ -301,6 +301,7 @@ components:
                 - UserIconReplaced
                 - StampInfoChanged
                 - StampImageReplaced
+                - CountReachingThreshold
 
         UserWebSocketEvent:
             description: 送信される WebSocket イベント。
@@ -313,6 +314,7 @@ components:
                 - $ref: '#/components/schemas/UserIconReplacedEvent'
                 - $ref: '#/components/schemas/StampInfoChangedEvent'
                 - $ref: '#/components/schemas/StampImageReplacedEvent'
+                - $ref: '#/components/schemas/CountReachingThresholdEvent'
 
         WebSocketEventBase:
             type: object
@@ -445,6 +447,18 @@ components:
                   required:
                       - type
                       - body
+
+        CountReachingThresholdEvent:
+            allOf:
+                - $ref: '#/components/schemas/WebSocketEventBase'
+                - type: object
+                  properties:
+                      type:
+                          type: string
+                          enum:
+                              - CountReachingThreshold
+                  required:
+                      - type
 
         MessageCreatedBody:
             type: object
