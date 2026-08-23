@@ -55,6 +55,10 @@ type TimelineDetailed struct {
 	Stamps     Stamps    `json:"stamps"`
 }
 
+type MessagesResponse struct {
+	Content []TimelineReceived `json:"hits"`
+}
+
 type TimelineResponse struct {
 	Messages []uuid.UUID `json:"messages"`
 }
@@ -65,21 +69,20 @@ type StampsReceived struct {
 	Count   Count     `json:"count"`
 }
 
-func GetActivity(sbp, all string) (*[]TimelineDetailed, error) {
-	result, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/activity/timeline?all="+all, nil)
+func GetActivity(sbp, all, query string) (*[]TimelineDetailed, *time.Time, *time.Time, error) {
+	result, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages?bot=false&limit=100&"+query, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	defer result.Body.Close()
-	var res []TimelineReceived
+	var res MessagesResponse
 	json.NewDecoder(result.Body).Decode(&res)
-
-	res_d := make([]TimelineDetailed, len(res))
-
-	for i, v := range res {
+	res4 := res.Content
+	res_d := make([]TimelineDetailed, len(res4))
+	for i, v := range res4 {
 		tmp, err2 := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages/"+v.MessageID.String()+"/stamps", nil)
 		if err2 != nil {
-			return nil, err2
+			return nil, nil, nil, err2
 		}
 		defer tmp.Body.Close()
 		var res2 []StampsReceived
@@ -118,21 +121,32 @@ func GetActivity(sbp, all string) (*[]TimelineDetailed, error) {
 			return res_d[i].StampCount > res_d[j].StampCount
 		})
 	}
-	return &res_d, nil
+	u := time.Now()
+	return &res_d, &u, &res_d[len(res_d)-1].CreatedAt, nil
 }
 
 func (h *TimelineHandler) GetTimeline(c echo.Context) error {
 	params := c.QueryParams()
-	if !(params.Has("sortByPopularity") || params.Has("all")) {
+	if !(params.Has("sortByPopularity")) {
 		return c.JSON(http.StatusBadRequest, nil)
 	}
-	res, err := GetActivity(params.Get("sortByPopularity"), params.Get("all"))
+	res, _, bm, err := GetActivity(params.Get("sortByPopularity"), "true", "before="+h.bottomMessage.String())
+	h.bottomMessage = *bm
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, nil)
 	}
 	return c.JSON(http.StatusOK, *res)
 }
 
-func (H *TimelineHandler) GetIn(c echo.Context) error {
-	return nil
+func (h *TimelineHandler) GetIn(c echo.Context) error {
+	params := c.QueryParams()
+	if !(params.Has("sortByPopularity")) {
+		return c.JSON(http.StatusBadRequest, nil)
+	}
+	res, lu, _, err := GetActivity(params.Get("sortByPopularity"), "true", "after="+h.lastUpdate.String())
+	h.lastUpdate = *lu
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, nil)
+	}
+	return c.JSON(http.StatusOK, *res)
 }
