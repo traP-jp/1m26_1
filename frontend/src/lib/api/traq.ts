@@ -15,6 +15,7 @@ type ChannelPath = traQcomponents['schemas']['ChannelPath']
 type Stamp = traQcomponents['schemas']['Stamp']
 type Message = traQcomponents['schemas']['Message']
 type User = traQcomponents['schemas']['UserDetail']
+type MessageStamp = traQcomponents['schemas']['MessageStamp']
 // ============================================
 // 3. traQ API クライアント関数
 // ============================================
@@ -107,21 +108,34 @@ export async function getStampImage(stampId: string): Promise<ArrayBuffer> {
 }
 
 /**
- * メッセージにスタンプを押す。
- * @param stampId - スタンプID
+ * メッセージにスタンプを押す
  * @param messageId - メッセージID
+ * @param stampId - スタンプID
+ * 正しいエンドポイント: POST /messages/{messageId}/stamps/{stampId}
  */
-export async function pinStamp(stampId: string, messageId: string): Promise<void> {
-    await apiClient.post(`${TRAQ_API_BASE}/stamps/${stampId}/pin`, { messageId })
+export async function pinStamp(messageId: string, stampId: string): Promise<void> {
+    await apiClient.post(`${TRAQ_API_BASE}/messages/${messageId}/stamps/${stampId}`)
 }
 
 /**
- * メッセージからスタンプを解除する。
+ * メッセージからスタンプを解除する
+ * @param messageId - メッセージID
  * @param stampId - スタンプID
+ * 正しいエンドポイント: DELETE /messages/{messageId}/stamps/{stampId}
+ */
+export async function unpinStamp(messageId: string, stampId: string): Promise<void> {
+    await apiClient.delete(`${TRAQ_API_BASE}/messages/${messageId}/stamps/${stampId}`)
+}
+
+/**
+ * メッセージのスタンプ一覧を取得する
  * @param messageId - メッセージID
  */
-export async function unpinStamp(stampId: string, messageId: string): Promise<void> {
-    await apiClient.delete(`${TRAQ_API_BASE}/stamps/${stampId}/pin?messageId=${messageId}`)
+export async function getMessageStamps(messageId: string): Promise<MessageStamp[]> {
+    const response = await apiClient.get<MessageStamp[]>(
+        `${TRAQ_API_BASE}/messages/${messageId}/stamps`
+    )
+    return response.data
 }
 
 // ============================================
@@ -138,4 +152,5 @@ export const traqApi = {
     pinStamp,
     unpinStamp,
     getUsers,
+    getMessageStamps,
 } as const

@@ -1,4 +1,4 @@
-import { http, HttpResponse, delay } from 'msw'
+import { http, HttpResponse, delay, ws } from 'msw'
 import type { components } from '@/gen/api-types'
 import type { traQcomponents } from '@/types/traq'
 
@@ -931,6 +931,83 @@ const MESSAGE_POOL: Message[] = Array.from({ length: 50 }, (_, index) =>
     generateMockMessage(index + 1),
 )
 
+// ★ 複数人が同じスタンプを押しているケースを追加（先頭のメッセージを修正）
+const now = new Date().toISOString()
+const targetMessage = MESSAGE_POOL[0] // 最初のメッセージ
+if (targetMessage) {
+    targetMessage.content = '複数人が同じスタンプを押しているケースのテストです。'
+    targetMessage.createdAt = now
+    targetMessage.updatedAt = now
+    targetMessage.stamps = [
+        // ユーザーA (konryu) が 👍 を1回
+        {
+            stampId: MOCK_STAMPS[0]!.id, // 👍
+            count: 1,
+            userId: MOCK_USERS[0]!.id,
+            createdAt: now,
+            updatedAt: now,
+        },
+        // ユーザーB (Ayuto) が 👍 を2回
+        {
+            stampId: MOCK_STAMPS[0]!.id, // 同じ 👍
+            count: 2,
+            userId: MOCK_USERS[1]!.id,
+            createdAt: now,
+            updatedAt: now,
+        },
+        // ユーザーC (Hokubu) が 👀 を1回
+        {
+            stampId: MOCK_STAMPS[1]!.id, // 👀
+            count: 1,
+            userId: MOCK_USERS[2]!.id,
+            createdAt: now,
+            updatedAt: now,
+        },
+        // ユーザーA (konryu) が 👀 も押している（同じスタンプを別ユーザーも）
+        {
+            stampId: MOCK_STAMPS[1]!.id, // 同じ 👀
+            count: 3,
+            userId: MOCK_USERS[0]!.id,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]
+    console.log(targetMessage)
+    MESSAGE_POOL[0] = targetMessage
+    console.log(MESSAGE_POOL[0])
+}
+// 2番目のメッセージにも同様のケースを追加（別のスタンプで）
+const secondMessage = MESSAGE_POOL[1]!
+if (secondMessage) {
+    secondMessage.content = '別のスタンプを複数人が押しているケースのテストです。'
+    secondMessage.createdAt = now
+    secondMessage.updatedAt = now
+    secondMessage.stamps = [
+        {
+            stampId: MOCK_STAMPS[3]!.id, // wakaru
+            count: 1,
+            userId: MOCK_USERS[0]!.id,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            stampId: MOCK_STAMPS[3]!.id, // 同じ wakaru
+            count: 1,
+            userId: MOCK_USERS[1]!.id,
+            createdAt: now,
+            updatedAt: now,
+        },
+        {
+            stampId: MOCK_STAMPS[3]!.id, // 同じ wakaru（3人目）
+            count: 1,
+            userId: MOCK_USERS[2]!.id,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]
+    MESSAGE_POOL[1] = secondMessage
+}
+
 let pendingNewMessages: Message[] = [
     generateMockMessage(101, {
         channelId: 'f2bea4b7-8a2d-43ba-b84b-f53aea3d43c5',
@@ -948,6 +1025,56 @@ let pendingNewMessages: Message[] = [
 
 const MOCK_ACCESS_TOKEN = 'mock_access_token_' + Date.now()
 const MOCK_REFRESH_TOKEN = 'mock_refresh_token_' + Date.now()
+
+// ============================================
+// MSW WebSocket モック（新規追加）
+// ============================================
+// MSW の WebSocket クライアントに必要なメソッドのみを定義
+interface WSClient {
+    send(data: string): void
+    addEventListener(event: string, listener: (event: unknown) => void): void
+    removeEventListener(event: string, listener: (event: unknown) => void): void
+    readyState?: number
+}
+
+let wsClients: WSClient[] = []
+
+const chat = ws.link('ws://localhost:8080/api/ws*')
+
+chat.addEventListener('connection', ({ client }: { client: WSClient }) => {
+    console.log('WebSocket 接続確立 (MSW)')
+    wsClients.push(client)
+
+    client.addEventListener('close', () => {
+        console.log('WebSocket 切断 (MSW)')
+        wsClients = wsClients.filter((c) => c !== client)
+    })
+
+    client.addEventListener('message', (event: unknown) => {
+        // 型ガード: event が { data: string } を持つことを確認
+        if (event && typeof event === 'object' && 'data' in event) {
+            const data = (event as { data: string }).data
+            console.log('WebSocket メッセージ受信:', data)
+        }
+    })
+})
+
+// ============================================
+// イベント送信ユーティリティ
+// ============================================
+
+const broadcastEvent = (event: { type: string; body: unknown }) => {
+    wsClients.forEach((client) => {
+        try {
+            // readyState が定義されていないか、OPEN (1) の場合は送信
+            if (client.readyState === undefined || client.readyState === 1) {
+                client.send(JSON.stringify(event))
+            }
+        } catch (e) {
+            console.warn('WebSocket 送信エラー:', e)
+        }
+    })
+}
 
 // ============================================
 // 4. 1m26_1 API ハンドラー
@@ -1227,6 +1354,94 @@ const traqHandlers = [
             },
         })
     }),
+
+    http.post(
+        'https://q.trap.jp/api/v3/messages/:messageId/stamps/:stampId',
+        async ({ params }) => {
+            const { messageId, stampId } = params
+
+            const message = MESSAGE_POOL.find((m) => m.id === messageId)
+            if (!message) {
+                return new HttpResponse(JSON.stringify({ message: 'メッセージが見つかりません' }), {
+                    status: 404,
+                })
+            }
+
+            const userId = CURRENT_USER.id
+            const existingStamp = message.stamps.find(
+                (s) => s.stampId === stampId && s.userId === userId,
+            )
+
+            if (existingStamp) {
+                existingStamp.count += 1
+            } else {
+                const now = new Date().toISOString()
+                message.stamps.push({
+                    stampId: stampId as string,
+                    count: 1,
+                    createdAt: now,
+                    updatedAt: now,
+                    userId: userId,
+                })
+            }
+
+            // WebSocket イベントを送信
+            broadcastEvent({
+                type: 'StampUpdated',
+                body: {
+                    messageId: messageId,
+                    stamps: message.stamps,
+                },
+            })
+
+            return new HttpResponse(null, { status: 204 })
+        },
+    ),
+
+    http.delete(
+        'https://q.trap.jp/api/v3/messages/:messageId/stamps/:stampId',
+        async ({ params }) => {
+            await simulateNetworkDelay(150)
+            const { messageId, stampId } = params
+
+            const message = MESSAGE_POOL.find((m) => m.id === messageId)
+            if (!message) {
+                return new HttpResponse(JSON.stringify({ message: 'メッセージが見つかりません' }), {
+                    status: 404,
+                })
+            }
+
+            const userId = CURRENT_USER.id
+            const stampIndex = message.stamps.findIndex(
+                (s) => s.stampId === stampId && s.userId === userId,
+            )
+
+            if (stampIndex === -1) {
+                return new HttpResponse(JSON.stringify({ message: 'スタンプが押されていません' }), {
+                    status: 400,
+                })
+            }
+
+            const stamp = message.stamps[stampIndex]!
+            if (stamp.count > 1) {
+                stamp.count -= 1
+                stamp.updatedAt = new Date().toISOString()
+            } else {
+                message.stamps.splice(stampIndex, 1)
+            }
+
+            // WebSocket イベントを送信
+            broadcastEvent({
+                type: 'StampUpdated',
+                body: {
+                    messageId: messageId,
+                    stamps: message.stamps,
+                },
+            })
+
+            return new HttpResponse(null, { status: 204 })
+        },
+    ),
 ]
 
 export const handlers = [...oneMonthonHandlers, ...traqHandlers]

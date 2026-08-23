@@ -131,7 +131,6 @@ const setupWebSocket = () => {
     if (import.meta.env.VITE_API_MOCKING === 'true') {
         return
     }
-
     wsManager.on('MessageCreated', onMessageCreated)
     wsManager.on('MessageDeleted', onMessageDeleted)
     wsManager.on('MessageEdited', onMessageEdited)
@@ -228,17 +227,18 @@ onMounted(async () => {
 
 onUnmounted(() => {
     // WebSocket イベントハンドラ解除＋切断（モック環境ではスキップ）
-    if (import.meta.env.VITE_API_MOCKING !== 'true') {
-        wsManager.off('MessageCreated', onMessageCreated)
-        wsManager.off('MessageDeleted', onMessageDeleted)
-        wsManager.off('MessageEdited', onMessageEdited)
-        wsManager.off('StampUpdated', onStampUpdated)
-        wsManager.off('UsernameChanged', onUsernameChanged)
-        wsManager.off('UserIconReplaced', onUserIconReplaced)
-        wsManager.off('StampInfoChanged', onStampInfoChanged)
-        wsManager.off('StampImageReplaced', onStampImageReplaced)
-        wsManager.disconnect()
+    if (import.meta.env.VITE_API_MOCKING === 'true') {
+        return
     }
+    wsManager.off('MessageCreated', onMessageCreated)
+    wsManager.off('MessageDeleted', onMessageDeleted)
+    wsManager.off('MessageEdited', onMessageEdited)
+    wsManager.off('StampUpdated', onStampUpdated)
+    wsManager.off('UsernameChanged', onUsernameChanged)
+    wsManager.off('UserIconReplaced', onUserIconReplaced)
+    wsManager.off('StampInfoChanged', onStampInfoChanged)
+    wsManager.off('StampImageReplaced', onStampImageReplaced)
+    wsManager.disconnect()
 })
 </script>
 

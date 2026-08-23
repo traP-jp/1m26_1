@@ -39,7 +39,6 @@ export const useChannelStore = defineStore('channel', () => {
     }
 
     const getChannelName = (channelId: string): string => {
-        console.log(channelPaths.value.get(channelId))
         return (
             channelPaths.value.get(channelId) ||
             channels.value.get(channelId)?.name ||
