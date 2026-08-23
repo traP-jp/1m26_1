@@ -55,9 +55,9 @@ type UserProfile struct {
 }
 
 type UserProfileReceived struct {
-	ID uuid.UUID `json:"id"`
-	UserID UserID `json:"name"`
-	Name UserName `json:"displayName"`
+	ID     uuid.UUID `json:"id"`
+	UserID UserID    `json:"name"`
+	Name   UserName  `json:"displayName"`
 }
 
 type MessageCount struct {
@@ -78,14 +78,14 @@ func (h *UserHandler) GetMe(c echo.Context) error {
 
 func (h *UserHandler) GetUser(c echo.Context) error {
 	user := c.Param("userId")
-	result, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/users/" + user, nil)
+	result, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/users/"+user, nil)
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, nil)
 	}
 	defer result.Body.Close()
 	var res UserProfileReceived
 	json.NewDecoder(result.Body).Decode(&res)
-	result2, err2 := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages?from=" + user, nil)
+	result2, err2 := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages?from="+user, nil)
 	if err2 != nil {
 		return c.JSON(http.StatusBadRequest, nil)
 	}
@@ -94,10 +94,10 @@ func (h *UserHandler) GetUser(c echo.Context) error {
 	json.NewDecoder(result2.Body).Decode(&res2)
 	res3 := 0
 	return c.JSON(http.StatusOK, UserProfile{
-		ID: res.ID,
-		UserID: res.UserID,
-		Name: res.Name,
-		StampCount: res3, // StampCount あとでやるぞ
+		ID:           res.ID,
+		UserID:       res.UserID,
+		Name:         res.Name,
+		StampCount:   res3, // StampCount あとでやるぞ
 		MessageCount: res2.MessageCount,
 	})
 }
