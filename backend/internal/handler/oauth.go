@@ -19,8 +19,9 @@ type OAuthResponse struct {
 type ReqBody struct {
 	Code string `json:"code"`
 }
+
 func sendRequsetToTraQ(code string) (*OAuthResponse, error) {
-	result, err := http.NewRequest("POST", "https://q.trap.jp/oauth2/token?grant_type=authorization_code&client_id=dN8CR7tqtHtFRYwzZod1MzvrkLRtkCpop5GC&code=" + code, nil)
+	result, err := http.NewRequest("POST", "https://q.trap.jp/oauth2/token?grant_type=authorization_code&client_id=dN8CR7tqtHtFRYwzZod1MzvrkLRtkCpop5GC&code="+code, nil)
 	if err != nil {
 		return nil, err
 	}
