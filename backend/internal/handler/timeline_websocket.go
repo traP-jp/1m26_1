@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/coder/websocket"
 	"github.com/gofrs/uuid"
@@ -39,7 +40,7 @@ func (h *TimelineWebSocketHandler) Connect(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, nil)
 	}
 	userID := uuid.UUID(user.Id)
-	initialEvent, err := buildInitializedEvent(userID)
+	initialEvent, err := buildInitializedEvent()
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, openapi.Error{Message: "Internal Server Error"})
 	}
@@ -153,6 +154,18 @@ func (c *webSocketClient) close() {
 	})
 }
 
+func (c *webSocketClient) writeLoop() {
+	for payload := range c.send {
+		ctx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
+		err := c.conn.Write(ctx, websocket.MessageText, payload)
+		cancel()
+		if err != nil {
+			break
+		}
+	}
+	c.close()
+}
+
 func (h *WebSocketHub) unregister(client *webSocketClient) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -162,4 +175,17 @@ func (h *WebSocketHub) unregister(client *webSocketClient) {
 		return
 	}
 	delete(clients, client)
+}
+
+func (h *WebSocketHub) register(client *webSocketClient) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.clients[client] = struct{}{}
+}
+
+func buildInitializedEvent() (any, error) {
+	return openapi.InitializedEvent{
+		Type: openapi.InitializedEventTypeInitialized,
+	}, nil
 }
