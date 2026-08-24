@@ -8,17 +8,20 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/traP-jp/1m26_1/backend/internal/service"
 )
 
 type TimelineHandler struct {
-	lastUpdate    time.Time
-	bottomMessage time.Time
+	lastUpdate      time.Time
+	bottomMessage   time.Time
+	timelineService *service.TimelineService
 }
 
-func NewTimelineHandler() *TimelineHandler {
+func NewTimelineHandler(timelineService *service.TimelineService) *TimelineHandler {
 	return &TimelineHandler{
-		lastUpdate:    time.Now(),
-		bottomMessage: time.Now(),
+		lastUpdate:      time.Now(),
+		bottomMessage:   time.Now(),
+		timelineService: timelineService,
 	}
 }
 
