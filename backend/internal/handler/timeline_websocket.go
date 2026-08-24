@@ -2,16 +2,76 @@ package handler
 
 import (
 	"context"
+	"net/http"
 	"sync"
 
 	"github.com/coder/websocket"
 	"github.com/gofrs/uuid"
+	"github.com/labstack/echo/v4"
+	authmiddleware "github.com/traP-jp/1m26_1/backend/internal/middleware"
+	"github.com/traP-jp/1m26_1/backend/internal/openapi"
+	"github.com/traP-jp/1m26_1/backend/internal/service"
 )
 
 // takusan
 
 type WebSocketEventSender struct {
 	hub *WebSocketHub
+}
+
+type TimelineWebSocketHandler struct {
+	timelineService *service.TimelineService
+	hub             *WebSocketHub
+	originPatterns  []string
+}
+
+func NewTimelineWebSocketHandler(timelineService *service.TimelineService, hub *WebSocketHub, originPatterns []string) *TimelineWebSocketHandler {
+	return &TimelineWebSocketHandler{
+		timelineService: timelineService,
+		hub:             hub,
+		originPatterns:  append([]string(nil), originPatterns...),
+	}
+}
+
+func (h *TimelineWebSocketHandler) Connect(c echo.Context) error {
+	user, ok := authmiddleware.GetAuthenticatedUser(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, nil)
+	}
+	userID := uuid.UUID(user.Id)
+	initialEvent, err := buildInitializedEvent(userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, openapi.Error{Message: "Internal Server Error"})
+	}
+	initialPayload, err := marshalWebSocketEvent(initialEvent)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, openapi.Error{Message: "Internal Server Error"})
+	}
+	conn, err := websocket.Accept(c.Response(), c.Request(), &websocket.AcceptOptions{
+		OriginPatterns: h.originPatterns,
+	})
+	if err != nil {
+		return nil
+	}
+	ctx := conn.CloseRead(context.Background())
+
+	client := &webSocketClient{
+		hub:    h.hub,
+		userID: userID,
+		conn:   conn,
+		ctx:    ctx,
+		send:   make(chan []byte, 16),
+	}
+	if !client.enqueue(initialPayload) {
+		client.close()
+		return nil
+	}
+	h.hub.register(client)
+	go client.writeLoop()
+
+	<-ctx.Done()
+	client.close()
+	return nil
 }
 
 func NewWebSocketEventSender(hub *WebSocketHub) *WebSocketEventSender {

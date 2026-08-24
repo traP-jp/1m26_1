@@ -9,6 +9,8 @@ import (
 	"github.com/traP-jp/1m26_1/backend/internal/config"
 	"github.com/traP-jp/1m26_1/backend/internal/handler"
 	authmiddleware "github.com/traP-jp/1m26_1/backend/internal/middleware"
+	"github.com/traP-jp/1m26_1/backend/internal/repository"
+	"github.com/traP-jp/1m26_1/backend/internal/service"
 )
 
 func New(cfg config.Config) *echo.Echo {
@@ -24,18 +26,29 @@ func New(cfg config.Config) *echo.Echo {
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, "X-Forwarded-User"},
 	}))
 
-	registerRoutes(e)
+	registerRoutes(e, cfg)
 
 	return e
 }
 
-func registerRoutes(e *echo.Echo) {
+func registerRoutes(e *echo.Echo, cfg config.Config) {
 	healthHandler := handler.NewHealthHandler()
 	userHandler := handler.NewUserHandler()
+	timelineRepository := repository.NewTimelineRepository()
+	webSocketHub := handler.NewWebSocketHub()
+	eventSender := handler.NewWebSocketEventSender(webSocketHub)
+	timelineService := service.NewTimelineService(*timelineRepository, eventSender)
+	timelineHandler := handler.NewTimelineHandler(timelineService)
+	timelineWebSocketHandler := handler.NewTimelineWebSocketHandler(timelineService, webSocketHub, cfg.CORSAllowOrigins)
 
 	e.GET("/healthz", healthHandler.Get)
 
 	api := e.Group("/api")
 	api.Use(authmiddleware.ForwardedUser)
-	api.GET("/me", userHandler.GetMe)
+	api.GET("/users/me", userHandler.GetMe)
+	api.GET("/users/:userId", userHandler.GetUser)
+	api.POST("/oauth/token", handler.OAuth)
+	api.GET("/timeline", timelineHandler.GetTimeline)
+	api.GET("/timeline/new", timelineHandler.GetIn)
+	api.GET("/ws", timelineWebSocketHandler.Connect)
 }
