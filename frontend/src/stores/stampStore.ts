@@ -47,28 +47,76 @@ export const useStampStore = defineStore('stamp', () => {
         return `:${stamp.name}:`
     }
 
-    const getStampImageUrl = (stampId: string, size = 24): string => {
+    const getStampImageUrl = (stampId: string, size = 48, format = 'webp'): string => {
         const stamp = getStamp(stampId)
-        if (!stamp || stamp.isUnicode) return ''
-        return `https://image-proxy.trap.jp/stamp/${stampId}?width=${size}&height=${size}`
+        if (!stamp) return ''
+        return `https://image-proxy.trap.jp/stamp/${stampId}?width=${size}&height=${size}&format=${format}`
     }
 
-    // インクリメンタルサーチ（キャッシュ付き）
+    /**
+     * 検索クエリに対するマッチングスコアを計算
+     * 4: 完全一致
+     * 3: 前方一致
+     * 2: 後方一致
+     * 1: 部分一致
+     * 0: 不一致（検索結果から除外）
+     */
+    const getMatchScore = (name: string, query: string): number => {
+        const lowerName = name.toLowerCase()
+        const lowerQuery = query.toLowerCase()
+
+        if (lowerName === lowerQuery) return 4
+        if (lowerName.startsWith(lowerQuery)) return 3
+        if (lowerName.endsWith(lowerQuery)) return 2
+        if (lowerName.includes(lowerQuery)) return 1
+        return 0
+    }
+
+    /**
+     * スタンプを検索スコアの降順でソート
+     */
+    const sortBySearchPriority = (stamps: Stamp[], query: string): Stamp[] => {
+        const lowerQuery = query.toLowerCase()
+        return [...stamps].sort((a, b) => {
+            const scoreA = getMatchScore(a.name, lowerQuery)
+            const scoreB = getMatchScore(b.name, lowerQuery)
+            return scoreB - scoreA // 降順（スコアが高い順）
+        })
+    }
+
+    // ★ 修正: インクリメンタルサーチ（キャッシュ付き + 優先順位ソート）
     const searchStamps = (query: string): Stamp[] => {
-        if (!query.trim()) {
+        const trimmed = query.trim()
+
+        // 空クエリの場合は全スタンプをデフォルト順（ID順）で返す
+        if (!trimmed) {
             return Array.from(stamps.value.values())
         }
-        const key = query.trim().toLowerCase()
+
+        const key = trimmed.toLowerCase()
+
+        // キャッシュチェック
         if (searchCache.value.has(key)) {
             const ids = searchCache.value.get(key)!
-            return ids.map((id) => stamps.value.get(id)).filter(Boolean) as Stamp[]
+            const filtered = ids
+                .map((id) => stamps.value.get(id))
+                .filter((s): s is Stamp => s !== undefined)
+            return sortBySearchPriority(filtered, trimmed)
         }
 
+        // フィルタリング（部分一致で絞り込み）
         const results = Array.from(stamps.value.values()).filter((stamp) =>
-            stamp.name.toLowerCase().includes(key)
+            stamp.name.toLowerCase().includes(key),
         )
-        searchCache.value.set(key, results.map((s) => s.id))
-        return results
+
+        // キャッシュにIDリストを保存
+        searchCache.value.set(
+            key,
+            results.map((s) => s.id),
+        )
+
+        // 優先順位でソートして返す
+        return sortBySearchPriority(results, trimmed)
     }
 
     // ★ 新規追加: よく使うスタンプ（履歴から取得）
