@@ -133,7 +133,7 @@ export async function unpinStamp(messageId: string, stampId: string): Promise<vo
  */
 export async function getMessageStamps(messageId: string): Promise<MessageStamp[]> {
     const response = await apiClient.get<MessageStamp[]>(
-        `${TRAQ_API_BASE}/messages/${messageId}/stamps`
+        `${TRAQ_API_BASE}/messages/${messageId}/stamps`,
     )
     return response.data
 }

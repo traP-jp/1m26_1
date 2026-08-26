@@ -4,423 +4,439 @@
  */
 
 export interface paths {
-    "/api/oauth/token": {
+    '/api/oauth/token': {
         parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
+            query?: never
+            header?: never
+            path?: never
+            cookie?: never
+        }
+        get?: never
+        put?: never
         post: {
             parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
+                query?: never
+                header?: never
+                path?: never
+                cookie?: never
+            }
             /** @description OAuth */
             requestBody: {
                 content: {
-                    "application/json": {
-                        code?: string;
-                    };
-                };
-            };
+                    'application/json': {
+                        code?: string
+                    }
+                }
+            }
             responses: {
-                200: components["responses"]["OAuth"];
-                400: components["responses"]["BadRequest"];
-                403: components["responses"]["Forbidden"];
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/users/me": {
+                200: components['responses']['OAuth']
+                400: components['responses']['BadRequest']
+                403: components['responses']['Forbidden']
+            }
+        }
+        delete?: never
+        options?: never
+        head?: never
+        patch?: never
+        trace?: never
+    }
+    '/api/users/me': {
         parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
+            query?: never
+            header?: never
+            path?: never
+            cookie?: never
+        }
         /** 自分の情報を取得する。 */
-        get: operations["getMe"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/users/:userId": {
+        get: operations['getMe']
+        put?: never
+        post?: never
+        delete?: never
+        options?: never
+        head?: never
+        patch?: never
+        trace?: never
+    }
+    '/api/users/:userId': {
         parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
+            query?: never
+            header?: never
+            path?: never
+            cookie?: never
+        }
         /** ユーザープロフィールを取得する。 */
-        get: operations["getUser"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/timeline": {
+        get: operations['getUser']
+        put?: never
+        post?: never
+        delete?: never
+        options?: never
+        head?: never
+        patch?: never
+        trace?: never
+    }
+    '/api/timeline': {
         parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
+            query?: never
+            header?: never
+            path?: never
+            cookie?: never
+        }
         /** タイムラインを取得する。 */
-        get: operations["getTimeline"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/timeline/new": {
+        get: operations['getTimeline']
+        put?: never
+        post?: never
+        delete?: never
+        options?: never
+        head?: never
+        patch?: never
+        trace?: never
+    }
+    '/api/timeline/new': {
         parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
+            query?: never
+            header?: never
+            path?: never
+            cookie?: never
+        }
         /** タイムラインの新しい投稿を取得する。 */
-        get: operations["getIn"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/ws": {
+        get: operations['getIn']
+        put?: never
+        post?: never
+        delete?: never
+        options?: never
+        head?: never
+        patch?: never
+        trace?: never
+    }
+    '/api/ws': {
         parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
+            query?: never
+            header?: never
+            path?: never
+            cookie?: never
+        }
         /** WebSocket 接続開始。 */
-        get: operations["connectWebSocket"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
+        get: operations['connectWebSocket']
+        put?: never
+        post?: never
+        delete?: never
+        options?: never
+        head?: never
+        patch?: never
+        trace?: never
+    }
 }
-export type webhooks = Record<string, never>;
+export type webhooks = Record<string, never>
 export interface components {
     schemas: {
         OAuthResponse: {
-            access_token: string;
+            access_token: string
             /** @example Bearer */
-            token_type: string;
-            expires_in: number;
-            refresh_token?: string;
-        };
+            token_type: string
+            expires_in: number
+            refresh_token?: string
+        }
         /** @description UUID */
-        UUID: string;
+        UUID: string
         /** @description ユーザーの ID */
-        UserId: string;
+        UserId: string
         /** @description ユーザー名 */
-        UserName: string;
+        UserName: string
         /** @description 自然数 */
-        Count: number;
+        Count: number
         User: {
-            id?: components["schemas"]["UUID"];
-            userId: components["schemas"]["UserId"];
-            name?: components["schemas"]["UserName"];
-        };
+            id?: components['schemas']['UUID']
+            userId: components['schemas']['UserId']
+            name?: components['schemas']['UserName']
+        }
         UserProfile: {
-            id?: components["schemas"]["UUID"];
-            userId: components["schemas"]["UserId"];
-            name?: components["schemas"]["UserName"];
-            messageCount?: components["schemas"]["Count"];
-            stampCount?: components["schemas"]["Count"];
-        };
+            id?: components['schemas']['UUID']
+            userId: components['schemas']['UserId']
+            name?: components['schemas']['UserName']
+            messageCount?: components['schemas']['Count']
+            stampCount?: components['schemas']['Count']
+        }
         /** @description 人気 (True) / 最新 (False) */
-        SortByPopularity: boolean;
+        SortByPopularity: boolean
         Error: {
-            message: string;
-        };
+            message: string
+        }
         TimelineMessage: {
-            messages: components["schemas"]["UUID"][];
-        };
+            messages: components['schemas']['UUID'][]
+        }
         /** @enum {string} */
-        WebSocketEventType: "MessageCreated" | "MessageDeleted" | "MessageEdited" | "StampUpdated" | "UsernameChanged" | "UserIconReplaced" | "StampInfoChanged" | "StampImageReplaced";
+        WebSocketEventType:
+            | 'MessageCreated'
+            | 'MessageDeleted'
+            | 'MessageEdited'
+            | 'StampUpdated'
+            | 'UsernameChanged'
+            | 'UserIconReplaced'
+            | 'StampInfoChanged'
+            | 'StampImageReplaced'
         /** @description 送信される WebSocket イベント。 */
-        UserWebSocketEvent: components["schemas"]["MessageCreatedEvent"] | components["schemas"]["MessageDeletedEvent"] | components["schemas"]["MessageEditedEvent"] | components["schemas"]["StampUpdatedEvent"] | components["schemas"]["UsernameChangedEvent"] | components["schemas"]["UserIconReplacedEvent"] | components["schemas"]["StampInfoChangedEvent"] | components["schemas"]["StampImageReplacedEvent"];
+        UserWebSocketEvent:
+            | components['schemas']['MessageCreatedEvent']
+            | components['schemas']['MessageDeletedEvent']
+            | components['schemas']['MessageEditedEvent']
+            | components['schemas']['StampUpdatedEvent']
+            | components['schemas']['UsernameChangedEvent']
+            | components['schemas']['UserIconReplacedEvent']
+            | components['schemas']['StampInfoChangedEvent']
+            | components['schemas']['StampImageReplacedEvent']
         WebSocketEventBase: {
-            type: components["schemas"]["WebSocketEventType"];
+            type: components['schemas']['WebSocketEventType']
             body: {
-                [key: string]: unknown;
-            };
-        };
-        MessageCreatedEvent: components["schemas"]["WebSocketEventBase"] & {
+                [key: string]: unknown
+            }
+        }
+        MessageCreatedEvent: components['schemas']['WebSocketEventBase'] & {
             /** @enum {string} */
-            type: "MessageCreated";
-            body: components["schemas"]["MessageCreatedBody"];
-        };
-        MessageDeletedEvent: components["schemas"]["WebSocketEventBase"] & {
+            type: 'MessageCreated'
+            body: components['schemas']['MessageCreatedBody']
+        }
+        MessageDeletedEvent: components['schemas']['WebSocketEventBase'] & {
             /** @enum {string} */
-            type: "MessageDeleted";
-            body: components["schemas"]["MessageDeletedBody"];
-        };
-        MessageEditedEvent: components["schemas"]["WebSocketEventBase"] & {
+            type: 'MessageDeleted'
+            body: components['schemas']['MessageDeletedBody']
+        }
+        MessageEditedEvent: components['schemas']['WebSocketEventBase'] & {
             /** @enum {string} */
-            type: "MessageEdited";
-            body: components["schemas"]["MessageEditedBody"];
-        };
-        StampUpdatedEvent: components["schemas"]["WebSocketEventBase"] & {
+            type: 'MessageEdited'
+            body: components['schemas']['MessageEditedBody']
+        }
+        StampUpdatedEvent: components['schemas']['WebSocketEventBase'] & {
             /** @enum {string} */
-            type: "StampUpdated";
-            body: components["schemas"]["StampUpdatedBody"];
-        };
-        UsernameChangedEvent: components["schemas"]["WebSocketEventBase"] & {
+            type: 'StampUpdated'
+            body: components['schemas']['StampUpdatedBody']
+        }
+        UsernameChangedEvent: components['schemas']['WebSocketEventBase'] & {
             /** @enum {string} */
-            type: "UsernameChanged";
-            body: components["schemas"]["UsernameChangedBody"];
-        };
-        UserIconReplacedEvent: components["schemas"]["WebSocketEventBase"] & {
+            type: 'UsernameChanged'
+            body: components['schemas']['UsernameChangedBody']
+        }
+        UserIconReplacedEvent: components['schemas']['WebSocketEventBase'] & {
             /** @enum {string} */
-            type: "UserIconReplaced";
-            body: components["schemas"]["UserIconReplacedBody"];
-        };
-        StampInfoChangedEvent: components["schemas"]["WebSocketEventBase"] & {
+            type: 'UserIconReplaced'
+            body: components['schemas']['UserIconReplacedBody']
+        }
+        StampInfoChangedEvent: components['schemas']['WebSocketEventBase'] & {
             /** @enum {string} */
-            type: "StampInfoChanged";
-            body: components["schemas"]["StampInfoChangedBody"];
-        };
-        StampImageReplacedEvent: components["schemas"]["WebSocketEventBase"] & {
+            type: 'StampInfoChanged'
+            body: components['schemas']['StampInfoChangedBody']
+        }
+        StampImageReplacedEvent: components['schemas']['WebSocketEventBase'] & {
             /** @enum {string} */
-            type: "StampImageReplaced";
-            body: components["schemas"]["StampImageReplacedBody"];
-        };
+            type: 'StampImageReplaced'
+            body: components['schemas']['StampImageReplacedBody']
+        }
         MessageCreatedBody: {
-            messageCount: components["schemas"]["Count"];
-            idFirst: components["schemas"]["UUID"];
-            idSecond?: components["schemas"]["UUID"];
-        };
+            messageCount: components['schemas']['Count']
+            idFirst: components['schemas']['UUID']
+            idSecond?: components['schemas']['UUID']
+        }
         MessageDeletedBody: {
-            messageId: components["schemas"]["UUID"];
-        };
+            messageId: components['schemas']['UUID']
+        }
         MessageEditedBody: {
-            messageIds: components["schemas"]["UUID"][];
-        };
+            messageIds: components['schemas']['UUID'][]
+        }
         StampUpdatedBody: {
-            messageId: components["schemas"]["UUID"];
-            stamps: components["schemas"]["Stamps"];
-        };
+            messageId: components['schemas']['UUID']
+            stamps: components['schemas']['Stamps']
+        }
         UsernameChangedBody: {
-            user: components["schemas"]["User"];
-        };
+            user: components['schemas']['User']
+        }
         UserIconReplacedBody: {
-            userId: components["schemas"]["UserId"];
-        };
+            userId: components['schemas']['UserId']
+        }
         StampInfoChangedBody: {
-            stampId: components["schemas"]["UUID"];
-            name: string;
-        };
+            stampId: components['schemas']['UUID']
+            name: string
+        }
         StampImageReplacedBody: {
-            stampId: components["schemas"]["UUID"];
-        };
+            stampId: components['schemas']['UUID']
+        }
         Stamps: {
-            superior: components["schemas"]["Stamp"][];
-            othersCount?: number;
-        };
+            superior: components['schemas']['Stamp'][]
+            othersCount?: number
+        }
         Stamp: {
-            id: components["schemas"]["UUID"];
-            count: components["schemas"]["Count"];
-        };
-    };
+            id: components['schemas']['UUID']
+            count: components['schemas']['Count']
+        }
+    }
     responses: {
         /** @description リクエスト不備。出直して来い。 */
         BadRequest: {
             headers: {
-                [name: string]: unknown;
-            };
+                [name: string]: unknown
+            }
             content: {
-                "application/json": components["schemas"]["Error"];
-            };
-        };
+                'application/json': components['schemas']['Error']
+            }
+        }
         /** @description 認証に失敗した。残念だったね。 */
         Unauthorized: {
             headers: {
-                [name: string]: unknown;
-            };
+                [name: string]: unknown
+            }
             content: {
-                "application/json": components["schemas"]["Error"];
-            };
-        };
+                'application/json': components['schemas']['Error']
+            }
+        }
         /** @description 返却できない。 */
         Forbidden: {
             headers: {
-                [name: string]: unknown;
-            };
+                [name: string]: unknown
+            }
             content: {
-                "application/json": components["schemas"]["Error"];
-            };
-        };
+                'application/json': components['schemas']['Error']
+            }
+        }
         /** @description 見つかりませんでした。ざまあ。 */
         NotFound: {
             headers: {
-                [name: string]: unknown;
-            };
+                [name: string]: unknown
+            }
             content: {
-                "application/json": components["schemas"]["Error"];
-            };
-        };
+                'application/json': components['schemas']['Error']
+            }
+        }
         /** @description サーバーの内部でエラーが発生。 */
         InternalServerError: {
             headers: {
-                [name: string]: unknown;
-            };
+                [name: string]: unknown
+            }
             content: {
-                "application/json": components["schemas"]["Error"];
-            };
-        };
+                'application/json': components['schemas']['Error']
+            }
+        }
         /** @description OAuth */
         OAuth: {
             headers: {
-                [name: string]: unknown;
-            };
+                [name: string]: unknown
+            }
             content: {
-                "application/json": components["schemas"]["OAuthResponse"];
-            };
-        };
-    };
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+                'application/json': components['schemas']['OAuthResponse']
+            }
+        }
+    }
+    parameters: never
+    requestBodies: never
+    headers: never
+    pathItems: never
 }
-export type $defs = Record<string, never>;
+export type $defs = Record<string, never>
 export interface operations {
     getMe: {
         parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
+            query?: never
+            header?: never
+            path?: never
+            cookie?: never
+        }
+        requestBody?: never
         responses: {
             /** @description 認証成功。 */
             200: {
                 headers: {
-                    [name: string]: unknown;
-                };
+                    [name: string]: unknown
+                }
                 content: {
-                    "application/json": components["schemas"]["User"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            500: components["responses"]["InternalServerError"];
-        };
-    };
+                    'application/json': components['schemas']['User']
+                }
+            }
+            401: components['responses']['Unauthorized']
+            500: components['responses']['InternalServerError']
+        }
+    }
     getUser: {
         parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: never;
-    };
+            query?: never
+            header?: never
+            path?: never
+            cookie?: never
+        }
+        requestBody?: never
+        responses: never
+    }
     getTimeline: {
         parameters: {
             query: {
-                SortByPopularity: boolean;
-                all: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
+                SortByPopularity: boolean
+                all: boolean
+            }
+            header?: never
+            path?: never
+            cookie?: never
+        }
+        requestBody?: never
         responses: {
             /** @description 取得成功。 */
             200: {
                 headers: {
-                    [name: string]: unknown;
-                };
+                    [name: string]: unknown
+                }
                 content: {
-                    "application/json": components["schemas"]["TimelineMessage"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            500: components["responses"]["InternalServerError"];
-        };
-    };
+                    'application/json': components['schemas']['TimelineMessage']
+                }
+            }
+            400: components['responses']['BadRequest']
+            401: components['responses']['Unauthorized']
+            500: components['responses']['InternalServerError']
+        }
+    }
     getIn: {
         parameters: {
             query: {
-                SortByPopularity: boolean;
-                all: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
+                SortByPopularity: boolean
+                all: boolean
+            }
+            header?: never
+            path?: never
+            cookie?: never
+        }
+        requestBody?: never
         responses: {
             /** @description 変更あり。 */
             200: {
                 headers: {
-                    [name: string]: unknown;
-                };
+                    [name: string]: unknown
+                }
                 content: {
-                    "application/json": components["schemas"]["TimelineMessage"];
-                };
-            };
+                    'application/json': components['schemas']['TimelineMessage']
+                }
+            }
             /** @description 変更なし。 */
             204: {
                 headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            500: components["responses"]["InternalServerError"];
-        };
-    };
+                    [name: string]: unknown
+                }
+                content?: never
+            }
+            400: components['responses']['BadRequest']
+            401: components['responses']['Unauthorized']
+            500: components['responses']['InternalServerError']
+        }
+    }
     connectWebSocket: {
         parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
+            query?: never
+            header?: never
+            path?: never
+            cookie?: never
+        }
+        requestBody?: never
         responses: {
             /** @description WebSocket Stream */
             101: {
                 headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
+                    [name: string]: unknown
+                }
+                content?: never
+            }
+        }
+    }
 }

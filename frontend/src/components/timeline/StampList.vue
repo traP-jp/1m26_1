@@ -64,7 +64,7 @@ const groupedStamps = computed(() => {
     }
 
     return Array.from(groups.values()).sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     )
 })
 
@@ -142,11 +142,15 @@ const getStampDisplayName = (stampId: string) => stampStore.getStampDisplayName(
 const getStampImageUrl = (stampId: string) => stampStore.getStampImageUrl(stampId)
 
 const emit = defineEmits<{
-    (e: 'open-palette', messageId: string): void
+    (e: 'open-palette', messageId: string, position: { x: number; y: number }): void
 }>()
 
-const openPalette = () => {
-    emit('open-palette', props.messageId)
+const openPalette = (event: MouseEvent) => {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+    emit('open-palette', props.messageId, {
+        x: rect.left,
+        y: rect.bottom, // ボタンの下端を基準にする
+    })
 }
 </script>
 
@@ -165,11 +169,8 @@ const openPalette = () => {
             @keydown.enter="toggleStamp(group.stampId)"
             :aria-label="`スタンプ ${getStampDisplayName(group.stampId)} (${group.totalCount}回)`"
         >
-            <span v-if="getStamp(group.stampId)?.isUnicode" class="stamp-emoji">
-                {{ getStampDisplayName(group.stampId) }}
-            </span>
             <img
-                v-else-if="getStampImageUrl(group.stampId)"
+                v-if="getStampImageUrl(group.stampId)"
                 :src="getStampImageUrl(group.stampId)"
                 alt="stamp"
                 class="stamp-image"
@@ -190,7 +191,7 @@ const openPalette = () => {
         <!-- ＋ボタン（スタンプパレットを開く） -->
         <button
             class="stamp-add-button"
-            @click="openPalette"
+            @click="openPalette($event)"
             aria-label="スタンプを追加"
             type="button"
         >

@@ -105,14 +105,14 @@ export const useTimelineStore = defineStore('timeline', () => {
      * @param stamps - 更新後のスタンプリスト
      */
     const updateMessageStamps = (messageId: string, stamps: TraqMessage['stamps']) => {
-    const index = messages.value.findIndex((m) => m.id === messageId)
-    if (index !== -1) {
-        const message = messages.value[index]
-        if (message) {
-            message.stamps = stamps
+        const index = messages.value.findIndex((m) => m.id === messageId)
+        if (index !== -1) {
+            const message = messages.value[index]
+            if (message) {
+                message.stamps = stamps
+            }
         }
     }
-}
 
     /**
      * ストアをリセットする

@@ -248,24 +248,71 @@ onUnmounted(() => {
 // ============================================
 const isPaletteOpen = ref(false)
 const targetMessageId = ref<string | null>(null)
+const palettePosition = ref({ x: 0, y: 0 })
 
-// StampList からイベントを受け取る
-const handleOpenPalette = (messageId: string) => {
+const handleOpenPalette = (messageId: string, position: { x: number; y: number }) => {
     targetMessageId.value = messageId
+    palettePosition.value = position
     isPaletteOpen.value = true
 }
 
-// スタンプ選択時の処理
+// スタンプ選択時の処理（楽観的更新付き）
 const handleSelectStamp = async (stamp: Stamp) => {
     if (!targetMessageId.value) return
+
+    const messageId = targetMessageId.value
+    const stampId = stamp.id
+
+    // 1. 現在のメッセージを取得
+    const targetMessage = timelineStore.messages.find((m) => m.id === messageId)
+    if (!targetMessage) {
+        console.warn('対象メッセージが見つかりません')
+        return
+    }
+
+    // 2. 自分のエントリを探す
+    const myEntry = targetMessage.stamps.find(
+        (s) => s.stampId === stampId && s.userId === authStore.userId,
+    )
+
+    let updatedStamps = [...targetMessage.stamps]
+
+    if (myEntry) {
+        // 既に押している → count を +1
+        updatedStamps = updatedStamps.map((s) => {
+            if (s.stampId === stampId && s.userId === authStore.userId) {
+                return { ...s, count: s.count + 1 }
+            }
+            return s
+        })
+    } else {
+        // 新規追加
+        const now = new Date().toISOString()
+        updatedStamps.push({
+            stampId: stampId,
+            count: 1,
+            userId: authStore.userId!,
+            createdAt: now,
+            updatedAt: now,
+        })
+    }
+
+    // 3. 楽観的更新（即座に UI 反映）
+    timelineStore.updateMessageStamps(messageId, updatedStamps)
+
+    // 4. 実際の API リクエスト
     try {
-        await traqApi.pinStamp(targetMessageId.value, stamp.id)
-        // 成功後は WebSocket イベントでスタンプリストが更新される
-        // モック環境対策として強制再取得などが必要な場合はここに追加
+        await traqApi.pinStamp(messageId, stampId)
+        // 成功 → WebSocket イベントで最終状態に収束（モック環境ではイベントが来ないが、楽観的更新で十分）
     } catch (error) {
         console.error('スタンプ追加に失敗:', error)
+        // 失敗したら元に戻す（ロールバック）
+        timelineStore.updateMessageStamps(messageId, targetMessage.stamps)
     }
-    // パレットを閉じる
+}
+
+// パレットを閉じる（パレット外クリック用）
+const closePalette = () => {
     isPaletteOpen.value = false
     targetMessageId.value = null
 }
@@ -284,5 +331,10 @@ const handleSelectStamp = async (stamp: Stamp) => {
         <TimelineContainer :messages="timelineStore.messages" @open-palette="handleOpenPalette" />
     </div>
 
-    <StampPalette v-model="isPaletteOpen" @select="handleSelectStamp" />
+    <StampPalette
+        v-model="isPaletteOpen"
+        @select="handleSelectStamp"
+        @close="closePalette"
+        :position="palettePosition"
+    />
 </template>

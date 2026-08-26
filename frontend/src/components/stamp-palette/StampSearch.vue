@@ -41,57 +41,50 @@ const clear = () => {
 <style scoped>
 .stamp-search {
     position: relative;
-    padding: 12px 16px;
+    padding: 10px 14px;
+    flex-shrink: 0;
+    background: #ffffff;
 }
 
 .search-input {
     width: 100%;
-    padding: 8px 36px 8px 12px;
-    border: 1px solid var(--surface-border, #d0d0d0);
-    border-radius: 8px;
-    font-size: 14px;
-    background: var(--surface-secondary, #f5f5f7);
-    color: var(--text-primary, #1d1d1f);
+    padding: 6px 32px 6px 12px;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #f8f9fa;
+    color: #1d1d1f;
     outline: none;
-    transition: border-color 0.2s;
+    transition: all 0.2s;
+    height: 32px;
 }
 
 .search-input:focus {
-    border-color: var(--accent-color, #1d9bf0);
-    background: var(--surface-primary, #ffffff);
+    border-color: #1d9bf0;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.1);
+}
+
+.search-input::placeholder {
+    color: #8e8e93;
+    font-weight: 400;
 }
 
 .clear-button {
     position: absolute;
-    right: 28px;
+    right: 22px;
     top: 50%;
     transform: translateY(-50%);
     cursor: pointer;
-    color: var(--text-secondary, #8e8e93);
+    color: #8e8e93;
     font-size: 14px;
     padding: 4px;
+    border-radius: 4px;
+    line-height: 1;
 }
 
 .clear-button:hover {
-    color: var(--text-primary, #1d1d1f);
-}
-
-/* ダークモード */
-@media (prefers-color-scheme: dark) {
-    .search-input {
-        background: #2c2c2e;
-        border-color: #3a3a3c;
-        color: #e8e8ed;
-    }
-    .search-input:focus {
-        background: #1d1d1f;
-        border-color: #1d9bf0;
-    }
-    .clear-button {
-        color: #8e8e93;
-    }
-    .clear-button:hover {
-        color: #e8e8ed;
-    }
+    color: #1d1d1f;
+    background: #f0f0f0;
 }
 </style>

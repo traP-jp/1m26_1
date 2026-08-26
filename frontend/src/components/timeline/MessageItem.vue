@@ -13,7 +13,7 @@ const props = defineProps<{ message: Message }>()
 const iconUrl = computed(() => userStore.getIconUrl(props.message.userId))
 
 const emit = defineEmits<{
-    (e: 'open-palette', messageId: string): void
+    (e: 'open-palette', messageId: string, position: { x: number; y: number }): void
 }>()
 </script>
 
@@ -37,7 +37,7 @@ const emit = defineEmits<{
             <StampList
                 :stamps="message.stamps"
                 :message-id="message.id"
-                @open-palette="(id) => emit('open-palette', id)"
+                @open-palette="(id, pos) => emit('open-palette', id, pos)"
             />
         </div>
     </article>

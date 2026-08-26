@@ -84,7 +84,7 @@ export const useStampStore = defineStore('stamp', () => {
         })
     }
 
-    // ★ 修正: インクリメンタルサーチ（キャッシュ付き + 優先順位ソート）
+    //インクリメンタルサーチ（キャッシュ付き + 優先順位ソート）
     const searchStamps = (query: string): Stamp[] => {
         const trimmed = query.trim()
 

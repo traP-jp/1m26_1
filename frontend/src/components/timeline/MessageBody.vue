@@ -7,7 +7,7 @@ defineProps<{ content: string }>()
 </template>
 
 <style scoped>
-.message-body{
+.message-body {
     margin: 0;
     font-size: var(--text-size-m);
 }

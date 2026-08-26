@@ -2,24 +2,24 @@
     <div
         class="stamp-item"
         @click="emit('click', stamp)"
+        @mouseenter="onMouseEnter"
+        @mouseleave="onMouseLeave"
         role="button"
         tabindex="0"
         @keydown.enter="emit('click', stamp)"
         :aria-label="getStampDisplayName(stamp.id)"
     >
-        <!-- Unicode スタンプ -->
-        <span v-if="stamp.isUnicode" class="stamp-emoji">
-            {{ stamp.name }}
-        </span>
-        <!-- カスタムスタンプ -->
         <img
-            v-else
             :src="getStampImageUrl(stamp.id)"
             :alt="stamp.name"
             class="stamp-image"
             referrerpolicy="no-referrer"
             loading="lazy"
-            @error="(e) => { (e.target as HTMLImageElement).style.display = 'none' }"
+            @error="
+                (e) => {
+                    ;(e.target as HTMLImageElement).style.display = 'none'
+                }
+            "
         />
     </div>
 </template>
@@ -36,54 +36,63 @@ const { stamp } = defineProps<{
 
 const emit = defineEmits<{
     (e: 'click', stamp: Stamp): void
+    (e: 'hover', stamp: Stamp | null): void // ★ 追加
 }>()
 
 const stampStore = useStampStore()
 
 const getStampDisplayName = (id: string) => stampStore.getStampDisplayName(id)
 const getStampImageUrl = (id: string) => stampStore.getStampImageUrl(id, 24)
+
+const onMouseEnter = () => {
+    emit('hover', stamp)
+}
+const onMouseLeave = () => {
+    emit('hover', null)
+}
 </script>
 
 <style scoped>
 .stamp-item {
-    width: 56px;
-    height: 56px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
-    background: var(--surface-secondary, #f5f5f7);
+    border-radius: 4px;
+    background: transparent;
     cursor: pointer;
-    transition: background 0.15s, transform 0.1s;
+    transition:
+        background 0.15s,
+        transform 0.1s;
     user-select: none;
+    padding: 4px;
+    box-sizing: border-box;
 }
 
 .stamp-item:hover {
     background: var(--surface-hover, #e5e5ea);
-    transform: scale(1.05);
+    transform: scale(1.1);
 }
 
 .stamp-item:active {
-    transform: scale(0.95);
+    transform: scale(0.9);
 }
 
 .stamp-emoji {
-    font-size: 32px;
+    font-size: 18px;
     line-height: 1;
 }
 
 .stamp-image {
-    width: 40px;
-    height: 40px;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
-    border-radius: 4px;
+    border-radius: 2px;
 }
 
 /* ダークモード */
 @media (prefers-color-scheme: dark) {
-    .stamp-item {
-        background: #2c2c2e;
-    }
     .stamp-item:hover {
         background: #3a3a3c;
     }

@@ -44,17 +44,18 @@ const sortedEntries = computed(() => {
         <div class="tooltip-content">
             <!-- スタンプ画像 -->
             <div class="tooltip-stamp">
-                <span v-if="getStamp(stampId)?.isUnicode" class="tooltip-emoji">
-                    {{ getStampDisplayName(stampId) }}
-                </span>
                 <img
-                    v-else-if="getStampImageUrl(stampId)"
+                    v-if="getStampImageUrl(stampId)"
                     :src="getStampImageUrl(stampId)"
                     alt="stamp"
                     class="tooltip-stamp-image"
                     referrerpolicy="no-referrer"
                     loading="lazy"
-                    @error="(e) => { (e.target as HTMLImageElement).style.display = 'none' }"
+                    @error="
+                        (e) => {
+                            ;(e.target as HTMLImageElement).style.display = 'none'
+                        }
+                    "
                 />
                 <span v-else class="tooltip-stamp-name">
                     :{{ getStamp(stampId)?.name || '?' }}:
@@ -76,7 +77,11 @@ const sortedEntries = computed(() => {
                     class="tooltip-avatar"
                     referrerpolicy="no-referrer"
                     loading="lazy"
-                    @error="(e) => { (e.target as HTMLImageElement).style.display = 'none' }"
+                    @error="
+                        (e) => {
+                            ;(e.target as HTMLImageElement).style.display = 'none'
+                        }
+                    "
                 />
             </div>
         </div>
@@ -84,53 +89,59 @@ const sortedEntries = computed(() => {
 </template>
 
 <style scoped>
-/* 既存のスタイルはそのまま */
+/* ===== ツールチップ（ライトモードベース） ===== */
 .stamp-tooltip {
     position: fixed;
     pointer-events: none;
     z-index: 9999;
-    background: #1d1d1f;
-    color: #e8e8ed;
-    border-radius: 12px;
+    background: #ffffff;
+    color: #1d1d1f;
+    border-radius: 10px;
     padding: 12px 14px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-    max-width: 220px;
-    min-width: 140px;
+    box-shadow:
+        0 8px 28px rgba(0, 0, 0, 0.12),
+        0 2px 8px rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    max-width: 200px;
+    min-width: 120px;
     transform: translate(0, 0);
     font-size: 13px;
     line-height: 1.4;
+    backdrop-filter: blur(2px);
 }
 
 .tooltip-stamp {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .tooltip-emoji {
-    font-size: 32px;
+    font-size: 36px;
     line-height: 1;
 }
 
 .tooltip-stamp-image {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     object-fit: contain;
     border-radius: 6px;
 }
 
 .tooltip-stamp-name {
     font-size: 14px;
-    color: #aaa;
+    color: #8e8e93;
+    font-weight: 500;
 }
 
 .tooltip-name {
     text-align: center;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 13px;
     margin-bottom: 8px;
-    color: #ffffff;
+    color: #1d1d1f;
+    letter-spacing: -0.2px;
 }
 
 .tooltip-users {
@@ -141,31 +152,13 @@ const sortedEntries = computed(() => {
 }
 
 .tooltip-avatar {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    border: 2px solid #2c2c2e;
+    border: 1.5px solid #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     object-fit: cover;
-    background: #3a3a3c;
+    background: #f2f2f7;
     flex-shrink: 0;
-}
-
-/* ライトモード対応 */
-@media (prefers-color-scheme: light) {
-    .stamp-tooltip {
-        background: #ffffff;
-        color: #1d1d1f;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    }
-    .tooltip-name {
-        color: #1d1d1f;
-    }
-    .tooltip-stamp-name {
-        color: #666;
-    }
-    .tooltip-avatar {
-        border-color: #ffffff;
-        background: #e8e8ed;
-    }
 }
 </style>

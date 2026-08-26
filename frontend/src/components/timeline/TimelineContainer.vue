@@ -9,7 +9,7 @@ defineProps<{ messages: Message[] }>()
 
 // 親コンポーネントへイベントを伝播するための emit
 const emit = defineEmits<{
-    (e: 'open-palette', messageId: string): void
+    (e: 'open-palette', messageId: string, position: { x: number; y: number }): void
 }>()
 </script>
 
@@ -34,7 +34,7 @@ const emit = defineEmits<{
             v-for="message in store.messages"
             :key="message.id"
             :message="message"
-            @open-palette="(id) => emit('open-palette', id)"
+            @open-palette="(id, pos) => emit('open-palette', id, pos)"
         />
     </section>
 </template>
