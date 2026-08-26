@@ -2,8 +2,15 @@
 import type { Message } from '../../types/traq'
 import MessageItem from './MessageItem.vue'
 import { useTimelineStore } from '../../stores/timelineStore'
+
 const store = useTimelineStore()
+
 defineProps<{ messages: Message[] }>()
+
+// 親コンポーネントへイベントを伝播するための emit
+const emit = defineEmits<{
+    (e: 'open-palette', messageId: string): void
+}>()
 </script>
 
 <template>
@@ -23,6 +30,11 @@ defineProps<{ messages: Message[] }>()
         </div>
 
         <!-- メッセージ一覧 -->
-        <MessageItem v-for="message in store.messages" :key="message.id" :message="message" />
+        <MessageItem
+            v-for="message in store.messages"
+            :key="message.id"
+            :message="message"
+            @open-palette="(id) => emit('open-palette', id)"
+        />
     </section>
 </template>

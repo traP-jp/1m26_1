@@ -11,6 +11,10 @@ import { computed } from 'vue'
 const userStore = useUserStore()
 const props = defineProps<{ message: Message }>()
 const iconUrl = computed(() => userStore.getIconUrl(props.message.userId))
+
+const emit = defineEmits<{
+    (e: 'open-palette', messageId: string): void
+}>()
 </script>
 
 <template>
@@ -30,7 +34,11 @@ const iconUrl = computed(() => userStore.getIconUrl(props.message.userId))
         <div class="message-area">
             <MessageHeader :message="message" />
             <MessageBody :content="message.content" />
-            <StampList :stamps="message.stamps" :message-id="message.id"/>
+            <StampList
+                :stamps="message.stamps"
+                :message-id="message.id"
+                @open-palette="(id) => emit('open-palette', id)"
+            />
         </div>
     </article>
 </template>

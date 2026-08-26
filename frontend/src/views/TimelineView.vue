@@ -15,8 +15,10 @@ import { oneMonthonApi } from '../lib/api/endpoints'
 import type { traQcomponents } from '../types/traq'
 import { traqApi } from '../lib/api/traq.ts'
 import type { components } from '../gen/api-types'
+import StampPalette from '../components/stamp-palette/StampPalette.vue'
 
 type Message = traQcomponents['schemas']['Message']
+type Stamp = traQcomponents['schemas']['Stamp']
 
 const route = useRoute()
 const router = useRouter()
@@ -240,6 +242,33 @@ onUnmounted(() => {
     wsManager.off('StampImageReplaced', onStampImageReplaced)
     wsManager.disconnect()
 })
+
+// ============================================
+// スタンプパレット管理
+// ============================================
+const isPaletteOpen = ref(false)
+const targetMessageId = ref<string | null>(null)
+
+// StampList からイベントを受け取る
+const handleOpenPalette = (messageId: string) => {
+    targetMessageId.value = messageId
+    isPaletteOpen.value = true
+}
+
+// スタンプ選択時の処理
+const handleSelectStamp = async (stamp: Stamp) => {
+    if (!targetMessageId.value) return
+    try {
+        await traqApi.pinStamp(targetMessageId.value, stamp.id)
+        // 成功後は WebSocket イベントでスタンプリストが更新される
+        // モック環境対策として強制再取得などが必要な場合はここに追加
+    } catch (error) {
+        console.error('スタンプ追加に失敗:', error)
+    }
+    // パレットを閉じる
+    isPaletteOpen.value = false
+    targetMessageId.value = null
+}
 </script>
 
 <template>
@@ -252,6 +281,8 @@ onUnmounted(() => {
     <!-- タイムライン表示 -->
     <div v-else>
         <NewMessageBanner @load-new-messages="handleLoadNewMessages" />
-        <TimelineContainer :messages="timelineStore.messages" />
+        <TimelineContainer :messages="timelineStore.messages" @open-palette="handleOpenPalette" />
     </div>
+
+    <StampPalette v-model="isPaletteOpen" @select="handleSelectStamp" />
 </template>

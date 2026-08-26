@@ -23,13 +23,16 @@ const timelineStore = useTimelineStore()
 // 1. スタンプをグループ化（表示用）
 // ============================================
 const groupedStamps = computed(() => {
-    const groups = new Map<string, {
-        stampId: string
-        totalCount: number
-        isPinned: boolean
-        entries: { userId: string; createdAt: string }[]
-        createdAt: string
-    }>()
+    const groups = new Map<
+        string,
+        {
+            stampId: string
+            totalCount: number
+            isPinned: boolean
+            entries: { userId: string; createdAt: string }[]
+            createdAt: string
+        }
+    >()
 
     for (const s of props.stamps) {
         const group = groups.get(s.stampId)
@@ -60,8 +63,8 @@ const groupedStamps = computed(() => {
         group.isPinned = group.entries.some((e) => e.userId === authStore.userId)
     }
 
-    return Array.from(groups.values()).sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    return Array.from(groups.values()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )
 })
 
@@ -76,7 +79,7 @@ const hoveredGroup = computed(() => {
     return groupedStamps.value.find((g) => g.stampId === hoveredStampId.value) ?? null
 })
 
-const onMouseEnter = (group: typeof groupedStamps.value[0], event: MouseEvent) => {
+const onMouseEnter = (group: (typeof groupedStamps.value)[0], event: MouseEvent) => {
     hoveredStampId.value = group.stampId
     tooltipPosition.value = {
         x: event.clientX + 12,
@@ -92,9 +95,7 @@ const onMouseLeave = () => {
 // 3. スタンプ操作（押す / 解除）
 // ============================================
 const toggleStamp = async (stampId: string) => {
-    const myEntry = props.stamps.find(
-        (s) => s.stampId === stampId && s.userId === authStore.userId
-    )
+    const myEntry = props.stamps.find((s) => s.stampId === stampId && s.userId === authStore.userId)
     const pinned = !!myEntry
 
     let updatedStamps = [...props.stamps]
@@ -139,6 +140,14 @@ const toggleStamp = async (stampId: string) => {
 const getStamp = (stampId: string) => stampStore.getStamp(stampId)
 const getStampDisplayName = (stampId: string) => stampStore.getStampDisplayName(stampId)
 const getStampImageUrl = (stampId: string) => stampStore.getStampImageUrl(stampId)
+
+const emit = defineEmits<{
+    (e: 'open-palette', messageId: string): void
+}>()
+
+const openPalette = () => {
+    emit('open-palette', props.messageId)
+}
 </script>
 
 <template>
@@ -178,7 +187,17 @@ const getStampImageUrl = (stampId: string) => stampStore.getStampImageUrl(stampI
             <span class="stamp-count">{{ group.totalCount }}</span>
         </span>
 
-        <!-- ★ ツールチップコンポーネントを呼び出し -->
+        <!-- ＋ボタン（スタンプパレットを開く） -->
+        <button
+            class="stamp-add-button"
+            @click="openPalette"
+            aria-label="スタンプを追加"
+            type="button"
+        >
+            <span class="add-icon">+</span>
+        </button>
+
+        <!-- ツールチップコンポーネントを呼び出し -->
         <StampTooltip
             v-if="hoveredGroup"
             :stamp-id="hoveredGroup.stampId"
@@ -248,5 +267,48 @@ const getStampImageUrl = (stampId: string) => stampStore.getStampImageUrl(stampI
 
 .stamp-item.pinned .stamp-count {
     color: var(--stamp-pinned-color, #ffac47);
+}
+
+.stamp-add-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 2px solid var(--surface-border, #d0d0d0);
+    background: var(--surface-secondary, #f5f5f7);
+    color: var(--text-secondary, #8e8e93);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    flex-shrink: 0;
+    line-height: 1;
+    position: relative;
+}
+
+/* ホバー時 */
+.stamp-add-button:hover {
+    border-color: var(--accent-color, #ffac47);
+    color: var(--accent-color, #ffac47);
+    background: var(--surface-hover, #e8f3fd);
+    transform: scale(1.05);
+}
+
+/* クリック時 */
+.stamp-add-button:active {
+    transform: scale(0.92);
+}
+
+/* アイコン */
+.add-icon {
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    display: inline-block;
+    font-size: 20px;
+    font-weight: 300;
+    line-height: 1;
+    transform-origin: center;
 }
 </style>
