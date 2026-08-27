@@ -10,9 +10,10 @@ import (
 const userContextKey = "authenticatedUser"
 
 type AuthenticatedUser struct {
-	Name   string
-	UserId string
-	Id     uuid.UUID
+	Name    string
+	UserId  string
+	Id      uuid.UUID
+	Session string
 }
 
 func ForwardedUser(next echo.HandlerFunc) echo.HandlerFunc {

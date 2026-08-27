@@ -2,51 +2,21 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
-	"log"
-
-	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
+type OAuthHandler struct {
+	hub *WebSocketHub
 }
 
-func main() {
-	http.HandleFunc("/api/ws", handleClient)
-
-	log.Fatal(http.ListenAndServe(":8000", nil))
-}
-
-func handleClient(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println(err)
-		return
+func NewOAuthHandler() *OAuthHandler {
+	wsh := NewWebSocketHub()
+	return &OAuthHandler{
+		hub: wsh,
 	}
-	defer conn.Close()
-
-	// conn が localhost 側の WebSocket connection
-
-}
-
-func connectTrap() (*websocket.Conn, error) {
-	header := http.Header{}
-
-	header.Set("Origin", "https://q.trap.jp")
-	header.Set("Cookie", "...")
-
-	header.Set("Origin", "https://q.trap.jp")
-
-	conn, _, err := websocket.DefaultDialer.Dial(
-		"wss://q.trap.jp/api/v3/ws",
-		header,
-	)
-	return conn, err
 }
 
 type OAuthResponse struct {
@@ -62,16 +32,11 @@ type ReqBody struct {
 	Code string `json:"code"`
 }
 
-func sendRequset(code string, r_session string) (*OAuthResponse, error) {
+func sendRequset(code string) (*OAuthResponse, error) {
 	req, err := http.NewRequest("POST", "https://q.trap.jp/oauth2/token?grant_type=authorization_code&client_id=dN8CR7tqtHtFRYwzZod1MzvrkLRtkCpop5GC&code="+code, nil)
 	if err != nil {
 		return nil, err
 	}
-	cookie := &http.Cookie{
-		Name:  "r_session",
-		Value: r_session,
-	}
-	req.AddCookie(cookie)
 	res2, err2 := http.DefaultClient.Do(req)
 	if err2 != nil {
 		return nil, err2
@@ -82,18 +47,25 @@ func sendRequset(code string, r_session string) (*OAuthResponse, error) {
 	return &res, nil
 }
 
-func OAuth(c echo.Context) error {
+func (h *OAuthHandler) OAuth(c echo.Context) error {
 	var data ReqBody
 	if err := c.Bind(&data); err != nil {
 		return c.JSON(http.StatusInternalServerError, nil)
 	}
-	rs, err3 := c.Cookie("r_session")
-	if err3 != nil {
-		return c.JSON(http.StatusUnauthorized, nil)
-	}
-	res, err2 := sendRequset(data.Code, rs.Value)
+	res, err2 := sendRequset(data.Code)
 	if err2 != nil {
 		return c.JSON(http.StatusForbidden, nil)
 	}
+	cookie, err3 := c.Cookie("r_session")
+	if err3 != nil {
+		return c.JSON(http.StatusUnauthorized, nil)
+	}
+	externalWS := NewExternalWebSocketClient(h.hub, cookie)
+
+	go func() {
+		if err := externalWS.Run(c.Request().Context()); err != nil {
+			log.Printf("external websocket: %v", err)
+		}
+	}()
 	return c.JSON(http.StatusOK, *res)
 }

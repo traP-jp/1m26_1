@@ -142,6 +142,15 @@ func (c *webSocketClient) enqueue(payload []byte) bool {
 	}
 }
 
+func (h *WebSocketHub) broadcast(payload []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		client.enqueue(payload)
+	}
+}
+
 func (c *webSocketClient) close() {
 	c.closeOnce.Do(func() {
 		c.mu.Lock()
