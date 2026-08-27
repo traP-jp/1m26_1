@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"strings"
+	"uuid"
 
 	"github.com/labstack/echo/v4"
 )
@@ -9,7 +10,10 @@ import (
 const userContextKey = "authenticatedUser"
 
 type AuthenticatedUser struct {
-	Name string
+	Name    string
+	UserId  string
+	Id      uuid.UUID
+	Session string
 }
 
 func ForwardedUser(next echo.HandlerFunc) echo.HandlerFunc {

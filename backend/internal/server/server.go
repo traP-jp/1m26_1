@@ -34,6 +34,7 @@ func New(cfg config.Config) *echo.Echo {
 func registerRoutes(e *echo.Echo, cfg config.Config) {
 	healthHandler := handler.NewHealthHandler()
 	userHandler := handler.NewUserHandler()
+	OAuthHandler := handler.NewOAuthHandler()
 	timelineRepository := repository.NewTimelineRepository()
 	webSocketHub := handler.NewWebSocketHub()
 	eventSender := handler.NewWebSocketEventSender(webSocketHub)
@@ -47,7 +48,7 @@ func registerRoutes(e *echo.Echo, cfg config.Config) {
 	api.Use(authmiddleware.ForwardedUser)
 	api.GET("/users/me", userHandler.GetMe)
 	api.GET("/users/:userId", userHandler.GetUser)
-	api.POST("/oauth/token", handler.OAuth)
+	api.POST("/oauth/token", OAuthHandler.OAuth)
 	api.GET("/timeline", timelineHandler.GetTimeline)
 	api.GET("/timeline/new", timelineHandler.GetIn)
 	api.GET("/ws", timelineWebSocketHandler.Connect)
