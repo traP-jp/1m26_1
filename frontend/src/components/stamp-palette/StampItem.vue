@@ -91,10 +91,4 @@ const onMouseLeave = () => {
     border-radius: 2px;
 }
 
-/* ダークモード */
-@media (prefers-color-scheme: dark) {
-    .stamp-item:hover {
-        background: #3a3a3c;
-    }
-}
 </style>

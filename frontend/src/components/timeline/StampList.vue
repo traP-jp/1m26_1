@@ -73,6 +73,7 @@ const groupedStamps = computed(() => {
 // ============================================
 const hoveredStampId = ref<string | null>(null)
 const tooltipPosition = ref({ x: 0, y: 0 })
+const isHoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)').matches
 
 const hoveredGroup = computed(() => {
     if (!hoveredStampId.value) return null
@@ -80,6 +81,7 @@ const hoveredGroup = computed(() => {
 })
 
 const onMouseEnter = (group: (typeof groupedStamps.value)[0], event: MouseEvent) => {
+    if (!isHoverCapable) return null
     hoveredStampId.value = group.stampId
     tooltipPosition.value = {
         x: event.clientX + 12,
@@ -195,7 +197,20 @@ const openPalette = (event: MouseEvent) => {
             aria-label="スタンプを追加"
             type="button"
         >
-            <span class="add-icon">+</span>
+            <svg
+                class="add-icon"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
+                <line x1="12" y1="4" x2="12" y2="20" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+            </svg>
         </button>
 
         <!-- ツールチップコンポーネントを呼び出し -->
@@ -237,8 +252,7 @@ const openPalette = (event: MouseEvent) => {
 }
 
 .stamp-item.pinned {
-    border-color: var(--stamp-pinned-color, #ffac47);
-    background: var(--surface-secondary);
+    background: #fbe0bb;
 }
 
 .stamp-emoji {
@@ -264,10 +278,6 @@ const openPalette = (event: MouseEvent) => {
     color: var(--text-secondary);
     min-width: 16px;
     text-align: center;
-}
-
-.stamp-item.pinned .stamp-count {
-    color: var(--stamp-pinned-color, #ffac47);
 }
 
 .stamp-add-button {
@@ -303,11 +313,11 @@ const openPalette = (event: MouseEvent) => {
 
 /* アイコン */
 .add-icon {
-    width: 100%;
-    height: 100%;
+    width: 80%;
+    height: 80%;
     text-align: center;
     display: inline-block;
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 300;
     line-height: 1;
     transform-origin: center;
