@@ -73,9 +73,13 @@ type StampsReceived struct {
 }
 
 func GetActivity(sbp, all, query string) (*[]TimelineDetailed, *time.Time, *time.Time, error) {
-	result, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages?bot=false&limit=100&"+query, nil)
+	req, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages?bot=false&limit=100&"+query, nil)
 	if err != nil {
 		return nil, nil, nil, err
+	}
+	result, err3 := http.DefaultClient.Do(req)
+	if err3 != nil {
+		return nil, nil, nil, err3
 	}
 	defer result.Body.Close()
 	var res MessagesResponse
@@ -83,9 +87,13 @@ func GetActivity(sbp, all, query string) (*[]TimelineDetailed, *time.Time, *time
 	res4 := res.Content
 	res_d := make([]TimelineDetailed, len(res4))
 	for i, v := range res4 {
-		tmp, err2 := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages/"+v.MessageID.String()+"/stamps", nil)
+		req2, err2 := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages/"+v.MessageID.String()+"/stamps", nil)
 		if err2 != nil {
 			return nil, nil, nil, err2
+		}
+		tmp, err4 := http.DefaultClient.Do(req2)
+		if err4 != nil {
+			return nil, nil, nil, err4
 		}
 		defer tmp.Body.Close()
 		var res2 []StampsReceived

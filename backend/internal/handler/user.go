@@ -78,16 +78,24 @@ func (h *UserHandler) GetMe(c echo.Context) error {
 
 func (h *UserHandler) GetUser(c echo.Context) error {
 	user := c.Param("userId")
-	result, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/users/"+user, nil)
+	req, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/users/"+user, nil)
 	if err != nil {
+		return c.JSON(http.StatusInternalServerError, nil)
+	}
+	result, err3 := http.DefaultClient.Do(req)
+	if err3 != nil {
 		return c.JSON(http.StatusUnauthorized, nil)
 	}
 	defer result.Body.Close()
 	var res UserProfileReceived
 	json.NewDecoder(result.Body).Decode(&res)
-	result2, err2 := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages?from="+user, nil)
+	req2, err2 := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages?from="+user, nil)
 	if err2 != nil {
 		return c.JSON(http.StatusBadRequest, nil)
+	}
+	result2, err4 := http.DefaultClient.Do(req2)
+	if err4 != nil {
+		return c.JSON(http.StatusInternalServerError, nil)
 	}
 	defer result2.Body.Close()
 	var res2 MessageCount
