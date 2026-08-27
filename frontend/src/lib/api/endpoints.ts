@@ -104,6 +104,7 @@ export async function exchangeOAuthCode(code: string): Promise<OAuthResponse> {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({ code }),
+        credentials: 'include',
     })
 }
 
