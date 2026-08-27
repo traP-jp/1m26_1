@@ -100,6 +100,21 @@ export const useTimelineStore = defineStore('timeline', () => {
     }
 
     /**
+     * メッセージのスタンプ情報を更新する
+     * @param messageId - メッセージID
+     * @param stamps - 更新後のスタンプリスト
+     */
+    const updateMessageStamps = (messageId: string, stamps: TraqMessage['stamps']) => {
+        const index = messages.value.findIndex((m) => m.id === messageId)
+        if (index !== -1) {
+            const message = messages.value[index]
+            if (message) {
+                message.stamps = stamps
+            }
+        }
+    }
+
+    /**
      * ストアをリセットする
      */
     const reset = () => {
@@ -124,6 +139,7 @@ export const useTimelineStore = defineStore('timeline', () => {
         prependMessages,
         updateMessage,
         removeMessage,
+        updateMessageStamps,
         reset,
     }
 })

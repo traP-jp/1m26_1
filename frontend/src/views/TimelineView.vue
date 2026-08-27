@@ -15,8 +15,10 @@ import { oneMonthonApi } from '../lib/api/endpoints'
 import type { traQcomponents } from '../types/traq'
 import { traqApi } from '../lib/api/traq.ts'
 import type { components } from '../gen/api-types'
+import StampPalette from '../components/stamp-palette/StampPalette.vue'
 
 type Message = traQcomponents['schemas']['Message']
+type Stamp = traQcomponents['schemas']['Stamp']
 
 const route = useRoute()
 const router = useRouter()
@@ -131,7 +133,6 @@ const setupWebSocket = () => {
     if (import.meta.env.VITE_API_MOCKING === 'true') {
         return
     }
-
     wsManager.on('MessageCreated', onMessageCreated)
     wsManager.on('MessageDeleted', onMessageDeleted)
     wsManager.on('MessageEdited', onMessageEdited)
@@ -228,18 +229,93 @@ onMounted(async () => {
 
 onUnmounted(() => {
     // WebSocket イベントハンドラ解除＋切断（モック環境ではスキップ）
-    if (import.meta.env.VITE_API_MOCKING !== 'true') {
-        wsManager.off('MessageCreated', onMessageCreated)
-        wsManager.off('MessageDeleted', onMessageDeleted)
-        wsManager.off('MessageEdited', onMessageEdited)
-        wsManager.off('StampUpdated', onStampUpdated)
-        wsManager.off('UsernameChanged', onUsernameChanged)
-        wsManager.off('UserIconReplaced', onUserIconReplaced)
-        wsManager.off('StampInfoChanged', onStampInfoChanged)
-        wsManager.off('StampImageReplaced', onStampImageReplaced)
-        wsManager.disconnect()
+    if (import.meta.env.VITE_API_MOCKING === 'true') {
+        return
     }
+    wsManager.off('MessageCreated', onMessageCreated)
+    wsManager.off('MessageDeleted', onMessageDeleted)
+    wsManager.off('MessageEdited', onMessageEdited)
+    wsManager.off('StampUpdated', onStampUpdated)
+    wsManager.off('UsernameChanged', onUsernameChanged)
+    wsManager.off('UserIconReplaced', onUserIconReplaced)
+    wsManager.off('StampInfoChanged', onStampInfoChanged)
+    wsManager.off('StampImageReplaced', onStampImageReplaced)
+    wsManager.disconnect()
 })
+
+// ============================================
+// スタンプパレット管理
+// ============================================
+const isPaletteOpen = ref(false)
+const targetMessageId = ref<string | null>(null)
+const palettePosition = ref({ x: 0, y: 0 })
+
+const handleOpenPalette = (messageId: string, position: { x: number; y: number }) => {
+    targetMessageId.value = messageId
+    palettePosition.value = position
+    isPaletteOpen.value = true
+}
+
+// スタンプ選択時の処理（楽観的更新付き）
+const handleSelectStamp = async (stamp: Stamp) => {
+    if (!targetMessageId.value) return
+
+    const messageId = targetMessageId.value
+    const stampId = stamp.id
+
+    // 1. 現在のメッセージを取得
+    const targetMessage = timelineStore.messages.find((m) => m.id === messageId)
+    if (!targetMessage) {
+        console.warn('対象メッセージが見つかりません')
+        return
+    }
+
+    // 2. 自分のエントリを探す
+    const myEntry = targetMessage.stamps.find(
+        (s) => s.stampId === stampId && s.userId === authStore.userId,
+    )
+
+    let updatedStamps = [...targetMessage.stamps]
+
+    if (myEntry) {
+        // 既に押している → count を +1
+        updatedStamps = updatedStamps.map((s) => {
+            if (s.stampId === stampId && s.userId === authStore.userId) {
+                return { ...s, count: s.count + 1 }
+            }
+            return s
+        })
+    } else {
+        // 新規追加
+        const now = new Date().toISOString()
+        updatedStamps.push({
+            stampId: stampId,
+            count: 1,
+            userId: authStore.userId!,
+            createdAt: now,
+            updatedAt: now,
+        })
+    }
+
+    // 3. 楽観的更新（即座に UI 反映）
+    timelineStore.updateMessageStamps(messageId, updatedStamps)
+
+    // 4. 実際の API リクエスト
+    try {
+        await traqApi.pinStamp(messageId, stampId)
+        // 成功 → WebSocket イベントで最終状態に収束（モック環境ではイベントが来ないが、楽観的更新で十分）
+    } catch (error) {
+        console.error('スタンプ追加に失敗:', error)
+        // 失敗したら元に戻す（ロールバック）
+        timelineStore.updateMessageStamps(messageId, targetMessage.stamps)
+    }
+}
+
+// パレットを閉じる（パレット外クリック用）
+const closePalette = () => {
+    isPaletteOpen.value = false
+    targetMessageId.value = null
+}
 </script>
 
 <template>
@@ -252,6 +328,13 @@ onUnmounted(() => {
     <!-- タイムライン表示 -->
     <div v-else>
         <NewMessageBanner @load-new-messages="handleLoadNewMessages" />
-        <TimelineContainer :messages="timelineStore.messages" />
+        <TimelineContainer :messages="timelineStore.messages" @open-palette="handleOpenPalette" />
     </div>
+
+    <StampPalette
+        v-model="isPaletteOpen"
+        @select="handleSelectStamp"
+        @close="closePalette"
+        :position="palettePosition"
+    />
 </template>

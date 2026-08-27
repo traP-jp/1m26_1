@@ -232,6 +232,8 @@ export interface components {
         }
         MessageCreatedBody: {
             messageCount: components['schemas']['Count']
+            idFirst: components['schemas']['UUID']
+            idSecond?: components['schemas']['UUID']
         }
         MessageDeletedBody: {
             messageId: components['schemas']['UUID']
@@ -240,6 +242,7 @@ export interface components {
             messageIds: components['schemas']['UUID'][]
         }
         StampUpdatedBody: {
+            messageId: components['schemas']['UUID']
             stamps: components['schemas']['Stamps']
         }
         UsernameChangedBody: {
@@ -363,6 +366,7 @@ export interface operations {
         parameters: {
             query: {
                 SortByPopularity: boolean
+                all: boolean
             }
             header?: never
             path?: never
@@ -388,6 +392,7 @@ export interface operations {
         parameters: {
             query: {
                 SortByPopularity: boolean
+                all: boolean
             }
             header?: never
             path?: never
