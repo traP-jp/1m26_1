@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/coder/websocket"
@@ -10,6 +11,11 @@ import (
 type ExternalWebSocketClient struct {
 	hub    *WebSocketHub
 	cookie *http.Cookie
+}
+
+type WebSocketEventReceived struct {
+	Type string `json:"type"`
+	Body string `json:"body"`
 }
 
 func NewExternalWebSocketClient(hub *WebSocketHub, cookie *http.Cookie) *ExternalWebSocketClient {
@@ -39,6 +45,12 @@ func (c *ExternalWebSocketClient) Run(ctx context.Context) error {
 
 		// 外部APIから受け取ったデータを処理
 		// ...
+
+		var received WebSocketEventReceived
+
+		json.Unmarshal(data, &received)
+
+		// WS 処理
 
 		c.hub.broadcast(data)
 	}
