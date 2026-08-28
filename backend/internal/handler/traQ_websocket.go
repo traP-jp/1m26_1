@@ -53,6 +53,12 @@ func (c *ExternalWebSocketClient) Run(ctx context.Context) error {
 
 		var data2 []byte
 		switch received.Type {
+		case "MESSAGE_CREATED":
+			data3 := WebSocketEvent{
+				Type: "MessageCreated",
+				Body: "1",
+			}
+			data2, err = json.Marshal(data3)
 		case "MESSAGE_DELETED":
 			var id SimplestBody
 			json.Unmarshal([]byte(received.Body), &id)
@@ -66,6 +72,14 @@ func (c *ExternalWebSocketClient) Run(ctx context.Context) error {
 			json.Unmarshal([]byte(received.Body), &id)
 			data3 := WebSocketEvent{
 				Type: "MessageEdited",
+				Body: id.Id,
+			}
+			data2, err = json.Marshal(data3)
+		case "USER_UPDATED":
+			var id SimplestBody
+			json.Unmarshal([]byte(received.Body), &id)
+			data3 := WebSocketEvent{
+				Type: "UserUpdated",
 				Body: id.Id,
 			}
 			data2, err = json.Marshal(data3)
