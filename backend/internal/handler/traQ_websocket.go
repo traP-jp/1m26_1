@@ -83,6 +83,14 @@ func (c *ExternalWebSocketClient) Run(ctx context.Context) error {
 				Body: id.Id,
 			}
 			data2, err = json.Marshal(data3)
+		case "STAMP_UPDATED":
+			var id SimplestBody
+			json.Unmarshal([]byte(received.Body), &id)
+			data3 := WebSocketEvent{
+				Type: "StampUpdated",
+				Body: id.Id,
+			}
+			data2, err = json.Marshal(data3)
 		}
 
 		// WS 処理
