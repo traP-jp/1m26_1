@@ -13,9 +13,13 @@ type ExternalWebSocketClient struct {
 	cookie *http.Cookie
 }
 
-type WebSocketEventReceived struct {
+type WebSocketEvent struct {
 	Type string `json:"type"`
 	Body string `json:"body"`
+}
+
+type SimplestBody struct {
+	Id string `json:"id"`
 }
 
 func NewExternalWebSocketClient(hub *WebSocketHub, cookie *http.Cookie) *ExternalWebSocketClient {
@@ -43,15 +47,25 @@ func (c *ExternalWebSocketClient) Run(ctx context.Context) error {
 			return err
 		}
 
-		// 外部APIから受け取ったデータを処理
-		// ...
-
-		var received WebSocketEventReceived
+		var received WebSocketEvent
 
 		json.Unmarshal(data, &received)
 
+		var data2 []byte
+		switch received.Type {
+		case "MESSAGE_DELETED":
+			var id SimplestBody
+			json.Unmarshal([]byte(received.Body), &id)
+			data3 := WebSocketEvent{
+				Type: "MessageDeleted",
+				Body: id.Id,
+			}
+			data2, err = json.Marshal(data3)
+
+		}
+
 		// WS 処理
 
-		c.hub.broadcast(data)
+		c.hub.broadcast(data2)
 	}
 }
