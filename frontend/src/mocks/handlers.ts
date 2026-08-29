@@ -108945,7 +108945,7 @@ const MESSAGE_POOL: Message[] = Array.from({ length: 50 }, (_, index) =>
 const now = new Date().toISOString()
 const targetMessage = MESSAGE_POOL[0] // 最初のメッセージ
 if (targetMessage) {
-    targetMessage.content = '複数人が同じスタンプを押しているケースのテストです。'
+    targetMessage.content = "# 見出し1\n\n## 見出し2\n\n### 見出し3\n\n#### 見出し4\n\n##### 見出し5\n\n###### 見出し6\n\n---\n\n**太字** と *イタリック* と ***太字イタリック***\n\n~~取り消し線~~ と ==マーカー== と `インラインコード`\n\n---\n\n[リンク](https://trap.jp)\n\n[タイトル付きリンク](https://trap.jp \"タイトル\")\n\n自動リンク https://trap.jp\n\n---\n\n> 引用文\n\n>> ネスト引用\n\n> > > さらにネスト\n\n---\n\n`インラインコード`\n\n```js\n// コードブロック（シンタックスハイライト）\nconst message = \"Hello, traQ!\";\nconsole.log(message);\n```\n\n``` go:hello.go\npackage main\nimport fmt\nfunc main() {\n\tfmt.Println(\"Hello, world!\")\n}\n```\n\n---\n\n- リスト項目1\n- リスト項目2\n  - ネストリスト\n    * さらにネスト\n+ プラスでもリスト\n* アスタリスクでもリスト\n\n1. 番号付きリスト\n2. 番号付きリスト2\n1. すべて1でも自動採番\n\n休憩\n\n57. オフセット指定\n1. 続き\n\n---\n\n| 左揃え | 中央揃え | 右揃え |\n| :--- | :---: | ---: |\n| あ | い | う |\n| え | お | か |\n\n---\n\n___\n\n---\n\n***\n\n---\n\n![画像の説明](https://trap.jp/favicon.png)\n\n---\n\n:👍: いいね！ :tensai: 天才！\n\n:@konryu: ユーザーアイコン表示\n\n---\n\n@konryu さん、こんにちは！ #general チャンネルで話しましょう。\n\n---\n\nインライン数式：$E = mc^2$\n\n表示数式：\n\n$x_y = \\frac{114}{514}$\n\n---\n\nスポイラー（!!）：!!隠れテキスト!!\n\n---\n\n 引用リンク:[イラストを始めてみよう！！](https://trap.jp/post/2912/) \n\n以上が traQ で利用可能な Markdown 記法のほぼすべてです。"
     targetMessage.createdAt = now
     targetMessage.updatedAt = now
     targetMessage.stamps = [

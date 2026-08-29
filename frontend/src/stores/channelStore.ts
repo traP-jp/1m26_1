@@ -50,6 +50,13 @@ export const useChannelStore = defineStore('channel', () => {
         return channels.value.get(channelId)
     }
 
+    const getChannelIdByName = (name: string): string | null => {
+        for (const [id, channel] of channels.value) {
+            if (channel.name === name) return id
+        }
+        return null
+    }
+
     return {
         channels,
         channelPaths,
@@ -57,5 +64,6 @@ export const useChannelStore = defineStore('channel', () => {
         fetchChannels,
         getChannelName,
         getChannel,
+        getChannelIdByName,
     }
 })

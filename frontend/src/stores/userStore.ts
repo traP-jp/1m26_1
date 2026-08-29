@@ -48,5 +48,14 @@ export const useUserStore = defineStore('user', () => {
         return '' // デフォルトアイコン（必要に応じて設定）
     }
 
-    return { users, isLoading, fetchUsers, getUser, getUserName, getIconUrl }
+    const getUserIconByName = (name: string): string | null => {
+        for (const [, user] of users.value) {
+            if (user.name === name) {
+                return `https://image-proxy.trap.jp/icon/${user.name}?width=64&height=64`
+            }
+        }
+        return null
+    }
+
+    return { users, isLoading, fetchUsers, getUser, getUserName, getIconUrl, getUserIconByName }
 })
