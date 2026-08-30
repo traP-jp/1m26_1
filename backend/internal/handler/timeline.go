@@ -136,6 +136,39 @@ func GetActivity(sbp, all, query string) (*[]TimelineDetailed, *time.Time, *time
 	return &res_d, &u, &res_d[len(res_d)-1].CreatedAt, nil
 }
 
+func GetStamps(id string) (*Stamps, error) {
+	req, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/message/"+id+"/stamps", nil)
+	if err != nil {
+		return nil, err
+	}
+	res, err2 := http.DefaultClient.Do(req)
+	if err2 != nil {
+		return nil, err2
+	}
+	defer res.Body.Close()
+	var res2 []StampsReceived
+	json.NewDecoder(res.Body).Decode(&res2)
+	sort.Slice(res2, func(i, j int) bool {
+		return res2[i].Count > res2[j].Count
+	})
+	sup := make([]Stamp, min(len(res2), 5))
+	ot := 0
+	for i, v := range res2 {
+		if i < 5 {
+			sup[i] = Stamp{
+				ID:    v.StampID,
+				Count: v.Count,
+			}
+		} else {
+			ot += v.Count
+		}
+	}
+	return &Stamps{
+		Superior:    sup,
+		OthersCount: ot,
+	}, nil
+}
+
 func (h *TimelineHandler) GetTimeline(c echo.Context) error {
 	params := c.QueryParams()
 	if !(params.Has("sortByPopularity")) {

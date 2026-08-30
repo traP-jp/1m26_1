@@ -15,11 +15,20 @@ type ExternalWebSocketClient struct {
 
 type WebSocketEvent struct {
 	Type string `json:"type"`
+	Body any    `json:"body"`
+}
+
+type WebSocketEventReceived struct {
+	Type string `json:"type"`
 	Body string `json:"body"`
 }
 
 type SimplestBody struct {
 	Id string `json:"id"`
+}
+
+type SimpleBody struct {
+	Id string `json:"message_id"`
 }
 
 func NewExternalWebSocketClient(hub *WebSocketHub, cookie *http.Cookie) *ExternalWebSocketClient {
@@ -47,7 +56,7 @@ func (c *ExternalWebSocketClient) Run(ctx context.Context) error {
 			return err
 		}
 
-		var received WebSocketEvent
+		var received WebSocketEventReceived
 
 		json.Unmarshal(data, &received)
 
@@ -87,8 +96,32 @@ func (c *ExternalWebSocketClient) Run(ctx context.Context) error {
 			var id SimplestBody
 			json.Unmarshal([]byte(received.Body), &id)
 			data3 := WebSocketEvent{
-				Type: "StampUpdated",
+				Type: "StampInfoUpdated",
 				Body: id.Id,
+			}
+			data2, err = json.Marshal(data3)
+		case "MESSAGE_STAMPED":
+			var id SimpleBody
+			json.Unmarshal([]byte(received.Body), &id)
+			res, err := GetStamps(id.Id)
+			if err != nil {
+				return err
+			}
+			data3 := WebSocketEvent{
+				Type: "StampUpdated",
+				Body: *res,
+			}
+			data2, err = json.Marshal(data3)
+		case "MESSAGE_UNSTAMPED":
+			var id SimpleBody
+			json.Unmarshal([]byte(received.Body), &id)
+			res, err := GetStamps(id.Id)
+			if err != nil {
+				return err
+			}
+			data3 := WebSocketEvent{
+				Type: "StampUpdated",
+				Body: *res,
 			}
 			data2, err = json.Marshal(data3)
 		}
