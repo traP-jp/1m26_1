@@ -182,6 +182,61 @@ export interface Message {
     embed: { content: string } | null
 }
 
+/**
+ * サムネイル情報
+ */
+interface ThumbnailInfo {
+    /** サムネイル種別 */
+    type: 'image' | 'waveform'
+    /** MIMEタイプ */
+    mime: string
+    /** 幅 (px) */
+    width?: number
+    /** 高さ (px) */
+    height?: number
+}
+
+/**
+ * @deprecated thumbnails を利用してください。ただし traQ API は後方互換のため引き続きこのフィールドを返します
+ */
+interface FileInfoThumbnail {
+    /** MIMEタイプ */
+    mime: string
+    /** 幅 (px) */
+    width?: number
+    /** 高さ (px) */
+    height?: number
+}
+
+/**
+ * 添付ファイル情報
+ * GET /files/{fileId}/meta のレスポンス
+ */
+interface FileInfo {
+    /** ファイルUUID */
+    id: string
+    /** ファイル名 */
+    name: string
+    /** MIMEタイプ */
+    mime: string
+    /** ファイルサイズ (バイト) */
+    size: number
+    /** MD5ハッシュ */
+    md5: string
+    /** アニメーション画像かどうか */
+    isAnimatedImage: boolean
+    /** アップロード日時 */
+    createdAt: string
+    /** サムネイル情報一覧 */
+    thumbnails: ThumbnailInfo[]
+    /** @deprecated thumbnails を利用してください */
+    thumbnail: FileInfoThumbnail | null
+    /** 属しているチャンネルUUID (紐付いていない場合は null) */
+    channelId: string | null
+    /** アップロード者UUID (紐付いていない場合は null) */
+    uploaderId: string | null
+}
+
 // ============================================
 // 2. エクスポート（components 形式）
 // ============================================
@@ -212,5 +267,11 @@ export interface traQcomponents {
         MessageStamp: MessageStamp
         /** メッセージ情報 */
         Message: Message
+        /** サムネイル情報 */
+        ThumbnailInfo: ThumbnailInfo
+        /** @deprecated サムネイル情報 (旧形式) */
+        FileInfoThumbnail: FileInfoThumbnail
+        /** 添付ファイル情報 */
+        FileInfo: FileInfo
     }
 }
