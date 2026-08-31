@@ -9,6 +9,8 @@ backend/bin/
 backend/server/
 backend/tmp/
 
+.env
+
 *.exe
 *.exe~
 *.dll
