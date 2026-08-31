@@ -14,6 +14,7 @@ export const useTimelineStore = defineStore('timeline', () => {
     const error = ref<string | null>(null)
     const sortByPopularity = ref(false)
     const addAnimationStampId = ref<string | null>(null)
+    const removeAnimationStampId = ref<string | null>(null)
 
     // ============================================
     // Getters（必要に応じて追加）
@@ -133,6 +134,15 @@ export const useTimelineStore = defineStore('timeline', () => {
         }, 200)
     }
 
+    const triggerRemoveStampAnimation = (stampId: string) => {
+        removeAnimationStampId.value = stampId
+        window.setTimeout(() => {
+            if (removeAnimationStampId.value === stampId) {
+                removeAnimationStampId.value = null
+            }
+        }, 200)
+    }
+
     return {
         // State
         messages,
@@ -140,6 +150,7 @@ export const useTimelineStore = defineStore('timeline', () => {
         error,
         sortByPopularity,
         addAnimationStampId,
+        removeAnimationStampId,
 
         // Getters
         messageCount,
@@ -153,5 +164,6 @@ export const useTimelineStore = defineStore('timeline', () => {
         updateMessageStamps,
         reset,
         triggerAddStampAnimation,
+        triggerRemoveStampAnimation,
     }
 })

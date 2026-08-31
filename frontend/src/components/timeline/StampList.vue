@@ -75,6 +75,7 @@ const hoveredStampId = ref<string | null>(null)
 const tooltipPosition = ref({ x: 0, y: 0 })
 const isHoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)').matches
 const addAnimationStampId = computed(() => timelineStore.addAnimationStampId)
+const removeAnimationStampId = computed(() => timelineStore.removeAnimationStampId)
 
 const hoveredGroup = computed(() => {
     if (!hoveredStampId.value) return null
@@ -102,34 +103,54 @@ const toggleStamp = async (stampId: string) => {
     const pinned = !!myEntry
 
     if (pinned) {
-        const updatedStamps = props.stamps
-            .map((s) => {
-                if (s.stampId === stampId && s.userId === authStore.userId) {
-                    return { ...s, count: s.count - 1 }
-                }
-                return s
-            })
-            .filter((s) => s.count > 0)
+        const remainingAfterSelfRemoval = props.stamps.filter(
+            (s) => !(s.stampId === stampId && s.userId === authStore.userId),
+        )
+        const hasOtherUsers = remainingAfterSelfRemoval.some((s) => s.stampId === stampId)
 
-        timelineStore.updateMessageStamps(props.messageId, updatedStamps)
+        const performRemove = async () => {
+            const updatedStamps = props.stamps
+                .map((s) => {
+                    if (s.stampId === stampId && s.userId === authStore.userId) {
+                        return { ...s, count: 0 }
+                    }
+                    return s
+                })
+                .filter((s) => s.count > 0)
 
-        try {
-            await traqApi.unpinStamp(props.messageId, stampId)
-        } catch (error) {
-            console.error('スタンプ解除に失敗:', error)
-            timelineStore.updateMessageStamps(props.messageId, props.stamps)
+            timelineStore.updateMessageStamps(props.messageId, updatedStamps)
+
+            try {
+                await traqApi.unpinStamp(props.messageId, stampId)
+            } catch (error) {
+                console.error('スタンプ解除に失敗:', error)
+                timelineStore.updateMessageStamps(props.messageId, props.stamps)
+            }
         }
+
+        if (!hasOtherUsers) {
+            timelineStore.triggerRemoveStampAnimation(stampId)
+            window.setTimeout(() => {
+                void performRemove()
+            }, 200)
+        } else {
+            void performRemove()
+        }
+
         return
     }
 
     const now = new Date().toISOString()
-    const updatedStamps = [...props.stamps, {
-        stampId: stampId,
-        count: 1,
-        userId: authStore.userId!,
-        createdAt: now,
-        updatedAt: now,
-    }]
+    const updatedStamps = [
+        ...props.stamps,
+        {
+            stampId: stampId,
+            count: 1,
+            userId: authStore.userId!,
+            createdAt: now,
+            updatedAt: now,
+        },
+    ]
 
     timelineStore.updateMessageStamps(props.messageId, updatedStamps)
 
@@ -170,7 +191,7 @@ const openPalette = (event: MouseEvent) => {
             :class="{
                 pinned: group.isPinned,
                 'stamp-item--added': addAnimationStampId === group.stampId,
-                'stamp-item--removed': false,
+                'stamp-item--removed': removeAnimationStampId === group.stampId,
             }"
             @click="toggleStamp(group.stampId)"
             @mouseenter="onMouseEnter(group, $event)"
