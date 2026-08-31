@@ -37,12 +37,20 @@ onUnmounted(() => {
 .app-header {
     position: sticky;
     top: 0;
-    background-color: var(--surface-translucent);
-    backdrop-filter: blur(4px);
-    width: 100vw;
+    /* traq-markdown-it の <pre> は position: relative（z-index なし）で、
+       ヘッダーより後ろの DOM に出る。ヘッダーにも z-index が無いと
+       同じ重なり階層で「後勝ち」になりコードブロックがヘッダーの上に描画される。
+       明示的に z-index を与えて常にヘッダーを前面に固定する。 */
+    z-index: 20;
+
+    background-color: var(--surface-overlay);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    box-shadow: 0 2px 8px var(--shadow);
+    width: 100%;
 
     display: flex;
-    gap: 0 !important; 
+    gap: 0 !important;
     flex-direction: column;
     opacity: 0.1;
     transition: opacity 150ms ease;
