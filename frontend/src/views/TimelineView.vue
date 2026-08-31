@@ -295,6 +295,7 @@ const handleSelectStamp = async (stamp: Stamp) => {
             createdAt: now,
             updatedAt: now,
         })
+        timelineStore.triggerAddStampAnimation(stampId)
     }
 
     // 3. 楽観的更新（即座に UI 反映）
