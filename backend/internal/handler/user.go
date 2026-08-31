@@ -12,9 +12,14 @@ import (
 
 type UserHandler struct{}
 
+type UserQuery struct {
+	ID uuid.UUID `json:"id"`
+}
+
 type UserResponse struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID     string `json:"id"`
+	UserId string `json:"userId"`
+	Name   string `json:"name"`
 }
 
 func NewUserHandler() *UserHandler {
@@ -65,8 +70,9 @@ func (h *UserHandler) GetMe(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, UserResponse{
-		ID:   user.Name,
-		Name: user.Name,
+		UserId: user.UserId,
+		ID:     user.Name,
+		Name:   user.Name,
 	})
 }
 
