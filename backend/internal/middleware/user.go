@@ -2,7 +2,8 @@ package middleware
 
 import (
 	"strings"
-	"uuid"
+
+	"github.com/gofrs/uuid"
 
 	"github.com/labstack/echo/v4"
 )
