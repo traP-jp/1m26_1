@@ -25,7 +25,8 @@ func ForwardedUser(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 
 		c.Set(userContextKey, AuthenticatedUser{
-			Name: userID,
+			UserId: userID,
+			Name:   userID,
 		})
 
 		return next(c)
