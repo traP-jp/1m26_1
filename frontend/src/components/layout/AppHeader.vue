@@ -46,9 +46,7 @@ onUnmounted(() => {
     background-color: var(--surface-overlay);
     backdrop-filter: blur(12px) saturate(180%);
     -webkit-backdrop-filter: blur(12px) saturate(180%);
-    box-shadow: 0 2px 8px var(--shadow);
     width: 100%;
-
     display: flex;
     gap: 0 !important;
     flex-direction: column;
