@@ -71,7 +71,7 @@ func (h *UserHandler) GetMe(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, UserResponse{
 		UserId: user.UserId,
-		ID:     user.Name,
+		ID:     user.Id.String(),
 		Name:   user.Name,
 	})
 }
