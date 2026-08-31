@@ -1,24 +1,25 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import VueVirtualScroller from 'vue-virtual-scroller'
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
+
 import App from './App.vue'
 import router from './router'
 import { startMockWorker } from './mocks'
 import './styles/main.css'
 
 async function bootstrap() {
-  // MSW の起動（開発時のみ）
-  await startMockWorker()
+    await startMockWorker()
 
-  const app = createApp(App)
-  const pinia = createPinia()
+    const app = createApp(App)
+    const pinia = createPinia()
 
-  app.use(pinia)
-  app.use(router)
+    app.use(pinia)
+    app.use(router)
+    app.use(VueVirtualScroller)
 
-  // 初期ナビゲーション完了を待ってからマウント
-  await router.isReady()
-
-  app.mount('#app')
+    await router.isReady()
+    app.mount('#app')
 }
 
 bootstrap()
