@@ -12,6 +12,6 @@ type TimelineService struct {
 func NewTimelineService(timelineRepository repository.TimelineRepository, events EventSender) *TimelineService {
 	return &TimelineService{
 		timelineRepository: timelineRepository,
-		events: events,
+		events:             events,
 	}
 }
