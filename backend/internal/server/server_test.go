@@ -38,7 +38,7 @@ func TestGetMeFallsBackToDeveloper(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if body.UserID != "traP" || body.Name != "traP" {
+	if body.UserId != "traP" || body.Name != "traP" {
 		t.Fatalf("unexpected response: %+v", body)
 	}
 }

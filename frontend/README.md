@@ -92,7 +92,9 @@ VITE_API_BASE=http://localhost:8080 VITE_API_MOCKING=false pnpm --dir frontend d
 ```
 
 ## フォルダ構成
+
 最初のものなのでviewとかcomponentなどの中身は変わりうる
+
 ```csharp
 frontend/
 ├── index.html

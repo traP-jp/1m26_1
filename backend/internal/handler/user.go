@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gofrs/uuid"
-
 	"github.com/labstack/echo/v4"
 
 	authmiddleware "github.com/traP-jp/1m26_1/backend/internal/middleware"
@@ -18,9 +17,9 @@ type UserQuery struct {
 }
 
 type UserResponse struct {
-	ID     uuid.UUID `json:"id"`
-	UserID string    `json:"userId"`
-	Name   string    `json:"name"`
+	ID     string `json:"id"`
+	UserId string `json:"userId"`
+	Name   string `json:"name"`
 }
 
 func NewUserHandler() *UserHandler {
@@ -55,9 +54,9 @@ type UserProfile struct {
 }
 
 type UserProfileReceived struct {
-	ID uuid.UUID `json:"id"`
-	UserID UserID `json:"name"`
-	Name UserName `json:"displayName"`
+	ID     uuid.UUID `json:"id"`
+	UserID UserID    `json:"name"`
+	Name   UserName  `json:"displayName"`
 }
 
 type MessageCount struct {
@@ -69,35 +68,44 @@ func (h *UserHandler) GetMe(c echo.Context) error {
 	if !ok {
 		return c.NoContent(http.StatusUnauthorized)
 	}
+
 	return c.JSON(http.StatusOK, UserResponse{
-		UserID: user.UserId,
+		UserId: user.UserId,
+		ID:     user.Id.String(),
 		Name:   user.Name,
-		ID:     user.Id,
 	})
 }
 
 func (h *UserHandler) GetUser(c echo.Context) error {
 	user := c.Param("userId")
-	result, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/users/" + user, nil)
+	req, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/users/"+user, nil)
 	if err != nil {
+		return c.JSON(http.StatusInternalServerError, nil)
+	}
+	result, err3 := http.DefaultClient.Do(req)
+	if err3 != nil {
 		return c.JSON(http.StatusUnauthorized, nil)
 	}
 	defer result.Body.Close()
 	var res UserProfileReceived
 	json.NewDecoder(result.Body).Decode(&res)
-	result2, err2 := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages?from=" + user, nil)
+	req2, err2 := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages?from="+user, nil)
 	if err2 != nil {
 		return c.JSON(http.StatusBadRequest, nil)
+	}
+	result2, err4 := http.DefaultClient.Do(req2)
+	if err4 != nil {
+		return c.JSON(http.StatusInternalServerError, nil)
 	}
 	defer result2.Body.Close()
 	var res2 MessageCount
 	json.NewDecoder(result2.Body).Decode(&res2)
 	res3 := 0
 	return c.JSON(http.StatusOK, UserProfile{
-		ID: res.ID,
-		UserID: res.UserID,
-		Name: res.Name,
-		StampCount: res3, // StampCount あとでやるぞ
+		ID:           res.ID,
+		UserID:       res.UserID,
+		Name:         res.Name,
+		StampCount:   res3, // StampCount あとでやるぞ
 		MessageCount: res2.MessageCount,
 	})
 }
