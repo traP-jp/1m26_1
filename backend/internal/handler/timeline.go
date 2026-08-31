@@ -66,6 +66,10 @@ type TimelineResponse struct {
 	Messages []uuid.UUID `json:"messages"`
 }
 
+type AuthorResponse struct {
+	UserID uuid.UUID `json:"userId"`
+}
+
 type StampsReceived struct {
 	StampID uuid.UUID `json:"stampId"`
 	UserID  uuid.UUID `json:"userId"`
@@ -167,6 +171,21 @@ func GetStamps(id string) (*Stamps, error) {
 		Superior:    sup,
 		OthersCount: ot,
 	}, nil
+}
+
+func GetAuthor(id string) (*AuthorResponse, error) {
+	req, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/message/"+id, nil)
+	if err != nil {
+		return nil, err
+	}
+	res, err2 := http.DefaultClient.Do(req)
+	if err2 != nil {
+		return nil, err2
+	}
+	defer res.Body.Close()
+	var res2 AuthorResponse
+	json.NewDecoder(res.Body).Decode(&res2)
+	return &res2, nil
 }
 
 func (h *TimelineHandler) GetTimeline(c echo.Context) error {
