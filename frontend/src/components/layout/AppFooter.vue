@@ -44,10 +44,7 @@ onUnmounted(() => {
             <img :src="homeIcon" alt="ホーム" />
         </RouterLink>
         <RouterLink to="/">
-            <img
-                :src="isNotificationActive ? notificationActiveIcon : notificationIcon"
-                alt="通知"
-            />
+            <img :src="isNotificationActive ? notificationActiveIcon : notificationIcon" alt="通知" />
         </RouterLink>
     </footer>
 </template>
@@ -70,6 +67,7 @@ onUnmounted(() => {
     justify-content: center;
     gap: 64px;
 }
+
 .app-footer.is-scrolling {
     opacity: 0.3;
 }

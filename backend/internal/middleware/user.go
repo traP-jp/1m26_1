@@ -4,15 +4,17 @@ import (
 	"strings"
 
 	"github.com/gofrs/uuid"
+
 	"github.com/labstack/echo/v4"
 )
 
 const userContextKey = "authenticatedUser"
 
 type AuthenticatedUser struct {
-	Name   string
-	UserId string
-	Id     uuid.UUID
+	Name    string
+	UserId  string
+	Id      uuid.UUID
+	Session string
 }
 
 func ForwardedUser(next echo.HandlerFunc) echo.HandlerFunc {
@@ -23,7 +25,8 @@ func ForwardedUser(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 
 		c.Set(userContextKey, AuthenticatedUser{
-			Name: userID,
+			UserId: userID,
+			Name:   userID,
 		})
 
 		return next(c)

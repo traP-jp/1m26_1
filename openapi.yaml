@@ -293,6 +293,7 @@ components:
         WebSocketEventType:
             type: string
             enum:
+                - Initialized
                 - MessageCreated
                 - MessageDeleted
                 - MessageEdited
@@ -306,6 +307,7 @@ components:
         UserWebSocketEvent:
             description: 送信される WebSocket イベント。
             oneOf:
+                - $ref: '#/components/schemas/InitializedEvent'
                 - $ref: '#/components/schemas/MessageCreatedEvent'
                 - $ref: '#/components/schemas/MessageDeletedEvent'
                 - $ref: '#/components/schemas/MessageEditedEvent'
@@ -327,6 +329,18 @@ components:
             required:
                 - type
                 - body
+
+        InitializedEvent:
+            allOf:
+                - $ref: '#/components/schemas/WebSocketEventBase'
+                - type: object
+                  properties:
+                      type:
+                          type: string
+                          enum:
+                              - Initialized
+                  required:
+                      - type
 
         MessageCreatedEvent:
             allOf:
