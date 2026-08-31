@@ -125,6 +125,7 @@ export const useTimelineStore = defineStore('timeline', () => {
         error.value = null
     }
 
+    // スタンプを追加・削除したときのアニメーションを起動
     const triggerAddStampAnimation = (stampId: string) => {
         addAnimationStampId.value = stampId
         window.setTimeout(() => {
