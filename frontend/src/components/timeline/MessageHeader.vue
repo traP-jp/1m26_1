@@ -36,22 +36,27 @@ const channelName = computed(() => channelStore.getChannelName(props.message.cha
     row-gap: 4px;
     column-gap: 4px;
     grid-template-rows: repeat(2, fit-content(100%));
-    grid-template-columns: 1fr minmax(0, 1fr) 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
 }
+/* 表示名と @ID は 1 本ずつトラックを分け合い、溢れたら両方が省略される */
 .user-names {
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-    min-width: 0;
-    grid-column: 1 / span 2;
+    grid-column: 1;
     grid-row: 1;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, auto);
+    justify-content: start;
+    align-items: baseline;
+    column-gap: 4px;
+    min-width: 0;
 }
 .user-name {
+    font-size: var(--text-size-m);
     font-weight: 600;
     color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
-    flex-shrink: 0;
-    font-size: var(--text-size-m);
 }
 .traq-id {
     font-size: var(--text-size-s);
@@ -59,13 +64,12 @@ const channelName = computed(() => channelStore.getChannelName(props.message.cha
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    min-width: 0;
 }
 .timestamp {
     font-size: var(--text-size-s);
     color: var(--text-secondary);
     white-space: nowrap;
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 1;
 }
 .channel-name {
@@ -73,8 +77,9 @@ const channelName = computed(() => channelStore.getChannelName(props.message.cha
     color: var(--text-secondary);
     font-weight: 500;
     overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
-    grid-column: 1;
+    grid-column: 1 / 3;
     grid-row: 2;
 }
 </style>

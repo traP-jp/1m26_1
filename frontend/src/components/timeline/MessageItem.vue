@@ -78,6 +78,8 @@ const emit = defineEmits<{
 }
 .message-area {
     flex-grow: 1;
+    /* 既定の min-width: auto だと、コード行など折り返せない中身が本文幅を押し広げてしまう */
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 8px;

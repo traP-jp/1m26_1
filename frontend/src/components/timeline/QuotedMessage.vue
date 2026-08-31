@@ -68,13 +68,15 @@ watch(
                     />
                 </svg>
             </span>
-            <span class="quote-display-name">{{ displayName }}</span>
-            <span v-if="userName" class="quote-user-id">@{{ userName }}</span>
+            <div class="quote-names">
+                <span class="quote-display-name">{{ displayName }}</span>
+                <span v-if="userName" class="quote-user-id">@{{ userName }}</span>
+            </div>
             <time class="quote-timestamp" :datetime="message.createdAt">{{
                 formatDate(message.createdAt)
             }}</time>
+            <span class="quote-channel">#{{ channelName }}</span>
         </header>
-        <div class="quote-channel">#{{ channelName }}</div>
 
         <div class="quote-body-wrapper">
             <div ref="bodyRef" class="quote-body" :class="{ 'is-expanded': isExpanded }">
@@ -115,18 +117,22 @@ watch(
 }
 
 .quote-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+        'avatar names timestamp'
+        'avatar channel channel';
+    column-gap: 6px;
+    row-gap: 2px;
 }
 
 .quote-avatar {
+    grid-area: avatar;
+    align-self: center;
     width: 24px;
     height: 24px;
     border-radius: 50%;
     object-fit: cover;
-    flex-shrink: 0;
 }
 
 .quote-avatar--placeholder {
@@ -142,17 +148,28 @@ watch(
     height: 16px;
 }
 
+/* 表示名と @ID は 1 本ずつトラックを分け合い、溢れたら両方が省略される */
+.quote-names {
+    grid-area: names;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, auto);
+    justify-content: start;
+    align-items: baseline;
+    column-gap: 4px;
+    min-width: 0;
+}
+
 .quote-display-name {
-    flex-shrink: 0;
     font-weight: 600;
     font-size: var(--text-size-s);
     color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .quote-user-id {
-    flex: 1;
-    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -161,17 +178,14 @@ watch(
 }
 
 .quote-timestamp {
-    flex-shrink: 0;
+    grid-area: timestamp;
     font-size: var(--text-size-s);
     color: var(--text-secondary);
     white-space: nowrap;
 }
 
 .quote-channel {
-    /* 親の gap 分を打ち消して、ヘッダー行にぎりぎりまで詰める */
-    margin-top: -6px;
-    margin-bottom: 4px;
-    margin-left: 28px;
+    grid-area: channel;
     font-size: var(--text-size-s);
     color: var(--text-secondary);
     overflow: hidden;
@@ -180,21 +194,20 @@ watch(
 }
 
 .quote-body {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
+    /* 高さの異なるブロック（見出し・コード・表）が混ざると -webkit-line-clamp は
+       破綻するので、行数ではなく高さでクランプする。境目は .quote-fade でぼかす */
+    max-height: calc(4 * 1.5em);
     overflow: hidden;
+    /* 長い URL などがカード幅を押し広げないように、どこでも折り返す */
+    overflow-wrap: anywhere;
     font-size: var(--text-size-s);
     line-height: 1.5;
     color: var(--text-primary);
 }
 
+/* 展開時に外すのは高さの制限だけ。overflow: hidden は横方向の抑えとして残す */
 .quote-body.is-expanded {
-    display: block;
-    -webkit-line-clamp: unset;
-    line-clamp: unset;
-    overflow: visible;
+    max-height: none;
 }
 
 .quote-body :deep(h1),
