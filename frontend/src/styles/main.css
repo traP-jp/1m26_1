@@ -25,6 +25,8 @@
     --surface-border-secondary: var(--gray-200);
     --surface-border-primary: var(--gray-400);
     --surface-translucent: rgba(255, 255, 255, 0.8);
+    /* スクロール中のコンテンツに重なるヘッダー/オーバーレイ用（下地を透かしすぎない） */
+    --surface-overlay: rgba(255, 255, 255, 0.92);
     --text-primary: var(--gray-800);
     --text-secondary: var(--gray-600);
     --text-positive: #58bf35;
@@ -83,9 +85,6 @@ a {
 }
 .message-body {
     white-space: pre-wrap;
-}
-.attachment-list {
-    padding-left: 1.25rem;
 }
 .stamp-list,
 .new-message-banner {

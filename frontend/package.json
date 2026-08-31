@@ -40,7 +40,9 @@
   },
   "dependencies": {
     "@traptitech/traq": "3.28.2-1",
+    "@traptitech/traq-markdown-it": "^7.1.0",
     "axios": "^1.19.0",
+    "katex": "^0.18.4",
     "pinia": "^3.0.4",
     "vue": "^3.5.38",
     "vue-router": "^5.1.0",
