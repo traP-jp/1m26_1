@@ -44,7 +44,10 @@ onUnmounted(() => {
             <img :src="homeIcon" alt="ホーム" />
         </RouterLink>
         <RouterLink to="/">
-            <img :src="isNotificationActive ? notificationActiveIcon : notificationIcon" alt="通知" />
+            <img
+                :src="isNotificationActive ? notificationActiveIcon : notificationIcon"
+                alt="通知"
+            />
         </RouterLink>
     </footer>
 </template>
