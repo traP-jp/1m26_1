@@ -88,6 +88,8 @@ const groupedStamps = computed(() => {
 // ============================================
 // 1.5. groupedStamps の変化を監視してアニメーションを制御
 // ============================================
+
+
 watchEffect(() => {
     const current = groupedStamps.value
     const previous = previousGroupedStamps.value
@@ -100,6 +102,10 @@ watchEffect(() => {
     const previousMap = new Map(previous.map((g) => [g.stampId, g]))
     const currentMap = new Map(current.map((g) => [g.stampId, g]))
 
+    // 状態を更新
+    const updateAnimationVariables = ()=>{
+        previousGroupedStamps.value = current
+    }
     // 現在のスタンプを走査
     for (const currentGroup of current) {
         const prevGroup = previousMap.get(currentGroup.stampId)
@@ -110,18 +116,21 @@ watchEffect(() => {
             // 200ms 後にアニメーション状態を削除
             setTimeout(() => {
                 animatingStamps.value.delete(currentGroup.stampId)
+                updateAnimationVariables()
             }, 200)
         } else if (currentGroup.totalCount > prevGroup.totalCount) {
             // スタンプの数が増えた
             newAnimatingStamps.set(currentGroup.stampId, 'count-up')
             setTimeout(() => {
                 animatingStamps.value.delete(currentGroup.stampId)
+                updateAnimationVariables()
             }, 200)
         } else if (currentGroup.totalCount < prevGroup.totalCount) {
             // スタンプの数が減った
             newAnimatingStamps.set(currentGroup.stampId, 'count-down')
             setTimeout(() => {
                 animatingStamps.value.delete(currentGroup.stampId)
+                updateAnimationVariables()
             }, 200)
         }
     }
@@ -137,14 +146,13 @@ watchEffect(() => {
             setTimeout(() => {
                 animatingStamps.value.delete(prevGroup.stampId)
                 removingStamps.value.delete(prevGroup.stampId)
+                updateAnimationVariables()
             }, 200)
         }
     }
-
-    // 状態を更新
     animatingStamps.value = newAnimatingStamps
     removingStamps.value = newRemovingStamps
-    previousGroupedStamps.value = current
+    
 })
 
 // ============================================
@@ -239,7 +247,7 @@ const openPalette = (event: MouseEvent) => {
     <div class="stamp-list">
         <!-- 通常のスタンプ表示 -->
         <span
-            v-for="group in groupedStamps"
+            v-for="group in previousGroupedStamps"
             :key="group.stampId"
             class="stamp-item"
             :class="{
@@ -247,6 +255,7 @@ const openPalette = (event: MouseEvent) => {
                 'animate-add': animatingStamps.get(group.stampId) === 'add',
                 'animate-count-up': animatingStamps.get(group.stampId) === 'count-up',
                 'animate-count-down': animatingStamps.get(group.stampId) === 'count-down',
+                'animate-remove': animatingStamps.get(group.stampId) === 'remove',
             }"
             @click="toggleStamp(group.stampId)"
             @mouseenter="onMouseEnter(group, $event)"
@@ -255,34 +264,6 @@ const openPalette = (event: MouseEvent) => {
             tabindex="0"
             @keydown.enter="toggleStamp(group.stampId)"
             :aria-label="`スタンプ ${getStampDisplayName(group.stampId)} (${group.totalCount}回)`"
-        >
-            <img
-                v-if="getStampImageUrl(group.stampId)"
-                :src="getStampImageUrl(group.stampId)"
-                alt="stamp"
-                class="stamp-image"
-                referrerpolicy="no-referrer"
-                loading="lazy"
-                @error="
-                    (e) => {
-                        ;(e.target as HTMLImageElement).style.display = 'none'
-                    }
-                "
-            />
-            <span v-else class="stamp-name-fallback">
-                :{{ getStamp(group.stampId)?.name || '?' }}:
-            </span>
-            <span class="stamp-count">{{ group.totalCount }}</span>
-        </span>
-
-        <!-- 削除アニメーション中のスタンプを一時表示 -->
-        <span
-            v-for="[stampId, group] of removingStamps"
-            :key="`removing-${stampId}`"
-            class="stamp-item animate-remove"
-            :class="{ pinned: group.isPinned }"
-            role="button"
-            :aria-label="`スタンプ ${getStampDisplayName(group.stampId)} (削除中)`"
         >
             <img
                 v-if="getStampImageUrl(group.stampId)"
