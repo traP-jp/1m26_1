@@ -373,6 +373,15 @@ const openPalette = (event: MouseEvent) => {
     }
 }
 
+@keyframes zoomIn {
+    from {
+        transform: scale(0.8);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
 /* ============================================
    スタンプアイテムのスタイルとアニメーション
    ============================================ */
@@ -395,6 +404,9 @@ const openPalette = (event: MouseEvent) => {
 .stamp-item.animate-add {
     animation: slideInFromBottom 0.2s ease-out forwards;
 }
+.stamp-item.animate-add > .stamp-image{
+    animation: zoomIn 0.2s ease-out forwards;
+}
 
 .stamp-item.animate-remove {
     animation: slideOutToBottom 0.2s ease-out forwards;
@@ -402,6 +414,9 @@ const openPalette = (event: MouseEvent) => {
 
 .stamp-item.animate-count-up .stamp-count {
     animation: drumRollUp 0.2s ease-out forwards;
+}
+.stamp-item.animate-count-up > .stamp-image{
+    animation: zoomIn 0.2s ease-out forwards;
 }
 
 .stamp-item.animate-count-down .stamp-count {
