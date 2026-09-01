@@ -24,7 +24,10 @@ export interface paths {
             requestBody: {
                 content: {
                     'application/json': {
-                        code?: string
+                        /** @description traQ から受け取った認可コード。 */
+                        code: string
+                        /** @description PKCE のベリファイア。認可時に code_challenge を送った場合は必須。 */
+                        code_verifier?: string
                     }
                 }
             }
@@ -135,6 +138,10 @@ export interface components {
             token_type: string
             expires_in: number
             refresh_token?: string
+            /** @description 取得時からスコープが狭められた場合にのみ返る。 */
+            scope?: string
+            /** @description JWT 形式の ID Token。openid スコープ要求時のみ返る。 */
+            id_token?: string
         }
         /** @description UUID */
         UUID: string
@@ -166,6 +173,7 @@ export interface components {
         }
         /** @enum {string} */
         WebSocketEventType:
+            | 'Initialized'
             | 'MessageCreated'
             | 'MessageDeleted'
             | 'MessageEdited'
@@ -174,8 +182,10 @@ export interface components {
             | 'UserIconReplaced'
             | 'StampInfoChanged'
             | 'StampImageReplaced'
+            | 'CountReachingThreshold'
         /** @description 送信される WebSocket イベント。 */
         UserWebSocketEvent:
+            | components['schemas']['InitializedEvent']
             | components['schemas']['MessageCreatedEvent']
             | components['schemas']['MessageDeletedEvent']
             | components['schemas']['MessageEditedEvent']
@@ -184,11 +194,16 @@ export interface components {
             | components['schemas']['UserIconReplacedEvent']
             | components['schemas']['StampInfoChangedEvent']
             | components['schemas']['StampImageReplacedEvent']
+            | components['schemas']['CountReachingThresholdEvent']
         WebSocketEventBase: {
             type: components['schemas']['WebSocketEventType']
             body: {
                 [key: string]: unknown
             }
+        }
+        InitializedEvent: components['schemas']['WebSocketEventBase'] & {
+            /** @enum {string} */
+            type: 'Initialized'
         }
         MessageCreatedEvent: components['schemas']['WebSocketEventBase'] & {
             /** @enum {string} */
@@ -229,6 +244,10 @@ export interface components {
             /** @enum {string} */
             type: 'StampImageReplaced'
             body: components['schemas']['StampImageReplacedBody']
+        }
+        CountReachingThresholdEvent: components['schemas']['WebSocketEventBase'] & {
+            /** @enum {string} */
+            type: 'CountReachingThreshold'
         }
         MessageCreatedBody: {
             messageCount: components['schemas']['Count']
