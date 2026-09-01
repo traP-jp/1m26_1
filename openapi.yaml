@@ -33,6 +33,12 @@ paths:
                             properties:
                                 code:
                                     type: string
+                                    description: traQ から受け取った認可コード。
+                                code_verifier:
+                                    type: string
+                                    description: PKCE のベリファイア。認可時に code_challenge を送った場合は必須。
+                            required:
+                                - code
             responses:
                 '200':
                     $ref: '#/components/responses/OAuth'
@@ -216,6 +222,12 @@ components:
                     type: integer
                 refresh_token:
                     type: string
+                scope:
+                    type: string
+                    description: 取得時からスコープが狭められた場合にのみ返る。
+                id_token:
+                    type: string
+                    description: JWT 形式の ID Token。openid スコープ要求時のみ返る。
             required:
                 - access_token
                 - token_type

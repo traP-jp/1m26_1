@@ -22,9 +22,26 @@ func TestHealthz(t *testing.T) {
 	}
 }
 
-func TestGetMeFallsBackToDeveloper(t *testing.T) {
+// 認証情報が何も無いリクエストは 401 になる。
+// 以前はリテラル "traP" にフォールバックしていたため、誰がログインしても
+// 同一ユーザーとして扱われていた。
+func TestGetMeRequiresCredentials(t *testing.T) {
 	e := New(testConfig())
 	req := httptest.NewRequest(http.MethodGet, "/api/users/me", nil)
+	rec := httptest.NewRecorder()
+
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+}
+
+// 本番はリバースプロキシが X-Forwarded-User を注入する。
+func TestGetMeUsesForwardedUser(t *testing.T) {
+	e := New(testConfig())
+	req := httptest.NewRequest(http.MethodGet, "/api/users/me", nil)
+	req.Header.Set("X-Forwarded-User", "Ayuto1123")
 	rec := httptest.NewRecorder()
 
 	e.ServeHTTP(rec, req)
@@ -38,7 +55,7 @@ func TestGetMeFallsBackToDeveloper(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if body.UserId != "traP" || body.Name != "traP" {
+	if body.UserId != "Ayuto1123" || body.Name != "Ayuto1123" {
 		t.Fatalf("unexpected response: %+v", body)
 	}
 }
