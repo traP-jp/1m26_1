@@ -14,6 +14,7 @@ import { wsManager } from '../lib/websocket'
 import { oneMonthonApi } from '../lib/api/endpoints'
 import type { traQcomponents } from '../types/traq'
 import { traqApi } from '../lib/api/traq.ts'
+import { API_CONCURRENCY, mapWithConcurrency } from '../lib/concurrency'
 import type { components } from '../gen/api-types'
 import StampPalette from '../components/stamp-palette/StampPalette.vue'
 
@@ -67,7 +68,9 @@ const onMessageDeleted = (body: { messageId: string }) => {
  */
 const onMessageEdited = async (body: { messageIds: string[] }) => {
     // 各メッセージを並列で再取得
-    const results = await Promise.allSettled(body.messageIds.map((id) => traqApi.getMessage(id)))
+    const results = await mapWithConcurrency(body.messageIds, API_CONCURRENCY, (id) =>
+        traqApi.getMessage(id),
+    )
 
     for (const result of results) {
         if (result.status === 'fulfilled') {
@@ -152,8 +155,8 @@ const handleLoadNewMessages = async () => {
         const response = await oneMonthonApi.getTimelineNew(timelineStore.sortByPopularity)
         if (response && response.messages.length > 0) {
             // メッセージ詳細を取得
-            const results = await Promise.allSettled(
-                response.messages.map((id) => traqApi.getMessage(id)),
+            const results = await mapWithConcurrency(response.messages, API_CONCURRENCY, (id) =>
+                traqApi.getMessage(id),
             )
             const newMessages: Message[] = []
             for (const result of results) {

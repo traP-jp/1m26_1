@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { oneMonthonApi } from '../lib/api/endpoints'
 import { traqApi } from '../lib/api/traq'
+import { API_CONCURRENCY, mapWithConcurrency } from '../lib/concurrency'
 import type { traQcomponents } from '../types/traq'
 
 export const useTimelineStore = defineStore('timeline', () => {
@@ -45,9 +46,10 @@ export const useTimelineStore = defineStore('timeline', () => {
                 return
             }
 
-            // 2. 各IDのメッセージ詳細を並列取得
-            const messagePromises = ids.map((id) => traqApi.getMessage(id))
-            const results = await Promise.allSettled(messagePromises)
+            // 2. 各IDのメッセージ詳細を取得（同時接続数を絞ってレートリミットを回避）
+            const results = await mapWithConcurrency(ids, API_CONCURRENCY, (id) =>
+                traqApi.getMessage(id),
+            )
 
             // 3. 成功したものだけを収集
             const fetchedMessages: TraqMessage[] = []
