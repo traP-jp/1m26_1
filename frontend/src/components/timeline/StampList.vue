@@ -89,7 +89,6 @@ const groupedStamps = computed(() => {
 // 1.5. groupedStamps の変化を監視してアニメーションを制御
 // ============================================
 
-
 watchEffect(() => {
     const current = groupedStamps.value
     const previous = previousGroupedStamps.value
@@ -103,7 +102,7 @@ watchEffect(() => {
     const currentMap = new Map(current.map((g) => [g.stampId, g]))
 
     // 状態を更新
-    const updateAnimationVariables = ()=>{
+    const updateAnimationVariables = () => {
         previousGroupedStamps.value = current
     }
     // 現在のスタンプを走査
@@ -152,7 +151,6 @@ watchEffect(() => {
     }
     animatingStamps.value = newAnimatingStamps
     removingStamps.value = newRemovingStamps
-    
 })
 
 // ============================================
@@ -179,6 +177,25 @@ const onMouseEnter = (group: StampGroup, event: MouseEvent) => {
 const onMouseLeave = () => {
     hoveredStampId.value = null
 }
+
+// ============================================
+// 2.5. 表示用スタンプリスト（previousGroupedStamps + 新規追加中のスタンプ）
+// ============================================
+const displayGroupedStamps = computed(() => {
+    const result = [...previousGroupedStamps.value]
+
+    // animatingStamps が 'add' のスタンプを groupedStamps から追加
+    for (const group of groupedStamps.value) {
+        if (animatingStamps.value.get(group.stampId) === 'add') {
+            // 既に存在するかチェック
+            if (!result.find((g) => g.stampId === group.stampId)) {
+                result.push(group)
+            }
+        }
+    }
+
+    return result
+})
 
 // ============================================
 // 3. スタンプ操作（押す / 解除）
@@ -247,7 +264,7 @@ const openPalette = (event: MouseEvent) => {
     <div class="stamp-list">
         <!-- 通常のスタンプ表示 -->
         <span
-            v-for="group in previousGroupedStamps"
+            v-for="group in displayGroupedStamps"
             :key="group.stampId"
             class="stamp-item"
             :class="{
@@ -398,13 +415,13 @@ const openPalette = (event: MouseEvent) => {
     cursor: pointer;
     user-select: none;
     transition: background 0.15s;
-    overflow-y:hidden;
+    overflow-y: hidden;
 }
 
 .stamp-item.animate-add {
     animation: slideInFromBottom 0.2s ease-out forwards;
 }
-.stamp-item.animate-add > .stamp-image{
+.stamp-item.animate-add > .stamp-image {
     animation: zoomIn 0.2s ease-out forwards;
 }
 
@@ -415,7 +432,7 @@ const openPalette = (event: MouseEvent) => {
 .stamp-item.animate-count-up .stamp-count {
     animation: drumRollUp 0.2s ease-out forwards;
 }
-.stamp-item.animate-count-up > .stamp-image{
+.stamp-item.animate-count-up > .stamp-image {
     animation: zoomIn 0.2s ease-out forwards;
 }
 
