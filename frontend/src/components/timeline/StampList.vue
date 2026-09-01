@@ -353,22 +353,22 @@ const openPalette = (event: MouseEvent) => {
 
 @keyframes drumRollUp {
     from {
-        transform: translateY(10px);
+        transform: translateY(0px);
         opacity: 0.5;
     }
     to {
-        transform: translateY(0);
+        transform: translateY(-20px);
         opacity: 1;
     }
 }
 
 @keyframes drumRollDown {
     from {
-        transform: translateY(-10px);
+        transform: translateY(0px);
         opacity: 0.5;
     }
     to {
-        transform: translateY(0);
+        transform: translateY(20px);
         opacity: 1;
     }
 }
@@ -389,6 +389,7 @@ const openPalette = (event: MouseEvent) => {
     cursor: pointer;
     user-select: none;
     transition: background 0.15s;
+    overflow-y:hidden;
 }
 
 .stamp-item.animate-add {
