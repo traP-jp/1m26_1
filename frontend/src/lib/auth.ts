@@ -47,6 +47,9 @@ function shouldBlockLoginAttempt(): boolean {
         attempts = { count: 0, windowStart: now }
     }
     attempts.count += 1
+    // codeql[js/clear-text-storage-of-sensitive-data] -- 保存しているのは試行回数と
+    // タイムスタンプのみで、認証情報や個人情報は含まない。キー名の "LOGIN" が
+    // ヒューリスティックに引っかかっているだけの誤検知。
     sessionStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify(attempts))
     return attempts.count > MAX_LOGIN_ATTEMPTS
 }
