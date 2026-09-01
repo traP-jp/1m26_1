@@ -191,7 +191,6 @@ onMounted(async () => {
     // 1. OAuth コールバック処理（code がある場合）
     // ============================================
     if (code) {
-        console.log(code)
         const result = await handleOAuthCallback(code, state || '')
 
         if (result.success) {
@@ -203,7 +202,13 @@ onMounted(async () => {
         } else {
             authError.value = result.error || '認証に失敗しました'
             isLoading.value = false
-            await router.replace({ path: '/', query: {} })
+            // ここで router.replace('/') すると、未認証かつ code の無いルートに
+            // 遷移してナビゲーションガードが再び initiateLogin() を呼び、
+            // 失敗 → リダイレクト → 失敗 …という無限ループになる
+            // （traQ 側のレート制限 429 を引き起こした原因）。
+            // 使用済みの code をアドレスバーから消すだけに留め、
+            // ルーター遷移は発生させない。
+            history.replaceState(history.state, '', route.path)
         }
         return
     }
@@ -226,7 +231,15 @@ onMounted(async () => {
         }
     } else {
         sessionStorage.setItem('login_redirect', route.fullPath)
-        await initiateLogin()
+        try {
+            await initiateLogin()
+        } catch (error) {
+            // サーキットブレーカーが働いた場合など、ここに来る。
+            // traQ への再リダイレクトはせず、理由を表示して止まる。
+            authError.value =
+                error instanceof Error ? error.message : 'ログインを開始できませんでした。'
+            isLoading.value = false
+        }
     }
 })
 

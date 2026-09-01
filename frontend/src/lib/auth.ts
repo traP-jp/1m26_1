@@ -11,6 +11,51 @@ const SCOPE = 'openid profile read write'
 const STATE_KEY = 'oauth_state'
 const CODE_VERIFIER_KEY = 'oauth_code_verifier'
 
+// ============================================
+// ログイン試行のサーキットブレーカー
+// ============================================
+// traQ へのリダイレクト（ルーターガード／トークン交換失敗／401 インターセプタ）は
+// 複数箇所から独立に発生しうる。設定ミスなどで毎回失敗すると、これらが際限なく
+// 連鎖し traQ 側のレート制限（429）に達してしまう。sessionStorage で試行回数を
+// 記録し、短時間に繰り返した場合はリダイレクトそのものを止める。
+const LOGIN_ATTEMPTS_KEY = 'oauth_login_attempts'
+const LOGIN_ATTEMPTS_WINDOW_MS = 30_000
+const MAX_LOGIN_ATTEMPTS = 3
+
+interface LoginAttempts {
+    count: number
+    windowStart: number
+}
+
+function readLoginAttempts(): LoginAttempts {
+    try {
+        const raw = sessionStorage.getItem(LOGIN_ATTEMPTS_KEY)
+        if (raw) return JSON.parse(raw) as LoginAttempts
+    } catch {
+        // 壊れた値は無視して初期状態から数え直す
+    }
+    return { count: 0, windowStart: Date.now() }
+}
+
+/**
+ * ログイン試行を 1 回分記録し、直近のウィンドウ内で上限を超えていれば true を返す。
+ */
+function shouldBlockLoginAttempt(): boolean {
+    const now = Date.now()
+    let attempts = readLoginAttempts()
+    if (now - attempts.windowStart > LOGIN_ATTEMPTS_WINDOW_MS) {
+        attempts = { count: 0, windowStart: now }
+    }
+    attempts.count += 1
+    sessionStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify(attempts))
+    return attempts.count > MAX_LOGIN_ATTEMPTS
+}
+
+/** ログインに成功したら呼び、次回以降の失敗をゼロから数え直せるようにする。 */
+function resetLoginAttempts() {
+    sessionStorage.removeItem(LOGIN_ATTEMPTS_KEY)
+}
+
 /** バイト列を base64url へ変換する（パディング無し）。 */
 function toBase64Url(bytes: Uint8Array): string {
     let binary = ''
@@ -41,6 +86,14 @@ function clearOAuthState() {
 
 export async function initiateLogin() {
     if (!CLIENT_ID) throw new Error('VITE_TRAQ_CLIENT_ID が設定されていません')
+
+    if (shouldBlockLoginAttempt()) {
+        throw new Error(
+            '短時間にログインへのリダイレクトが繰り返されたため停止しました。' +
+                'traQ クライアントの設定（client_id・callback URL・scope）を確認し、' +
+                'ページを再読み込みしてから改めてお試しください。',
+        )
+    }
 
     const state = crypto.randomUUID()
     const codeVerifier = generateCodeVerifier()
@@ -93,6 +146,7 @@ export async function handleOAuthCallback(
         const response = await oneMonthonApi.exchangeOAuthCode(code, codeVerifier)
         const authStore = useAuthStore()
         authStore.setToken(response.access_token)
+        resetLoginAttempts()
 
         const redirect = sessionStorage.getItem('login_redirect') || redirectPath
         sessionStorage.removeItem('login_redirect')
