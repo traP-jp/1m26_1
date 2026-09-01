@@ -193,7 +193,7 @@ const toggleStamp = async (stampId: string) => {
         updatedStamps = updatedStamps
             .map((s) => {
                 if (s.stampId === stampId && s.userId === authStore.userId) {
-                    return { ...s, count: s.count - 1 }
+                    return { ...s, count: 0 }
                 }
                 return s
             })
