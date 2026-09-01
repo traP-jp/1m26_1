@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
 import { useStampStore } from '../../stores/stampStore'
 import { useTimelineStore } from '../../stores/timelineStore'
@@ -8,6 +8,13 @@ import StampTooltip from './StampTooltip.vue'
 import type { traQcomponents } from '../../types/traq'
 
 type MessageStamp = traQcomponents['schemas']['MessageStamp']
+type StampGroup = {
+    stampId: string
+    totalCount: number
+    isPinned: boolean
+    entries: { userId: string; createdAt: string }[]
+    createdAt: string
+}
 
 const props = defineProps<{
     messageId: string
@@ -18,6 +25,16 @@ const props = defineProps<{
 const authStore = useAuthStore()
 const stampStore = useStampStore()
 const timelineStore = useTimelineStore()
+
+// ============================================
+// 0. アニメーション関連の状態管理
+// ============================================
+/** 前フレームの groupedStamps を保持 */
+const previousGroupedStamps = ref<StampGroup[]>([])
+/** アニメーション中のスタンプとそのタイプを管理 */
+const animatingStamps = ref<Map<string, 'add' | 'remove' | 'count-up' | 'count-down'>>(new Map())
+/** 削除アニメーション中のスタンプを一時的に保持 */
+const removingStamps = ref<Map<string, StampGroup>>(new Map())
 
 // ============================================
 // 1. スタンプをグループ化（表示用）
@@ -69,6 +86,68 @@ const groupedStamps = computed(() => {
 })
 
 // ============================================
+// 1.5. groupedStamps の変化を監視してアニメーションを制御
+// ============================================
+watchEffect(() => {
+    const current = groupedStamps.value
+    const previous = previousGroupedStamps.value
+
+    // 新しいアニメーションをリセット
+    const newAnimatingStamps = new Map<string, 'add' | 'remove' | 'count-up' | 'count-down'>()
+    const newRemovingStamps = new Map<string, StampGroup>()
+
+    // 前フレームに存在したスタンプのstampId:stampのマップを作成（比較用）
+    const previousMap = new Map(previous.map((g) => [g.stampId, g]))
+    const currentMap = new Map(current.map((g) => [g.stampId, g]))
+
+    // 現在のスタンプを走査
+    for (const currentGroup of current) {
+        const prevGroup = previousMap.get(currentGroup.stampId)
+
+        if (!prevGroup) {
+            // 新しいスタンプが追加された
+            newAnimatingStamps.set(currentGroup.stampId, 'add')
+            // 200ms 後にアニメーション状態を削除
+            setTimeout(() => {
+                animatingStamps.value.delete(currentGroup.stampId)
+            }, 200)
+        } else if (currentGroup.totalCount > prevGroup.totalCount) {
+            // スタンプの数が増えた
+            newAnimatingStamps.set(currentGroup.stampId, 'count-up')
+            setTimeout(() => {
+                animatingStamps.value.delete(currentGroup.stampId)
+            }, 200)
+        } else if (currentGroup.totalCount < prevGroup.totalCount) {
+            // スタンプの数が減った
+            newAnimatingStamps.set(currentGroup.stampId, 'count-down')
+            setTimeout(() => {
+                animatingStamps.value.delete(currentGroup.stampId)
+            }, 200)
+        }
+    }
+
+    // 前フレームに存在して、現在には存在しないスタンプを走査
+    for (const prevGroup of previous) {
+        if (!currentMap.has(prevGroup.stampId)) {
+            // スタンプが削除された
+            newAnimatingStamps.set(prevGroup.stampId, 'remove')
+            newRemovingStamps.set(prevGroup.stampId, prevGroup)
+
+            // 200ms 後にアニメーション状態と一時保持を削除
+            setTimeout(() => {
+                animatingStamps.value.delete(prevGroup.stampId)
+                removingStamps.value.delete(prevGroup.stampId)
+            }, 200)
+        }
+    }
+
+    // 状態を更新
+    animatingStamps.value = newAnimatingStamps
+    removingStamps.value = newRemovingStamps
+    previousGroupedStamps.value = current
+})
+
+// ============================================
 // 2. ホバー状態管理（stampId のみ保持）
 // ============================================
 const hoveredStampId = ref<string | null>(null)
@@ -80,7 +159,7 @@ const hoveredGroup = computed(() => {
     return groupedStamps.value.find((g) => g.stampId === hoveredStampId.value) ?? null
 })
 
-const onMouseEnter = (group: (typeof groupedStamps.value)[0], event: MouseEvent) => {
+const onMouseEnter = (group: StampGroup, event: MouseEvent) => {
     if (!isHoverCapable) return null
     hoveredStampId.value = group.stampId
     tooltipPosition.value = {
@@ -158,11 +237,17 @@ const openPalette = (event: MouseEvent) => {
 
 <template>
     <div class="stamp-list">
+        <!-- 通常のスタンプ表示 -->
         <span
             v-for="group in groupedStamps"
             :key="group.stampId"
             class="stamp-item"
-            :class="{ pinned: group.isPinned }"
+            :class="{
+                pinned: group.isPinned,
+                'animate-add': animatingStamps.get(group.stampId) === 'add',
+                'animate-count-up': animatingStamps.get(group.stampId) === 'count-up',
+                'animate-count-down': animatingStamps.get(group.stampId) === 'count-down',
+            }"
             @click="toggleStamp(group.stampId)"
             @mouseenter="onMouseEnter(group, $event)"
             @mouseleave="onMouseLeave"
@@ -170,6 +255,34 @@ const openPalette = (event: MouseEvent) => {
             tabindex="0"
             @keydown.enter="toggleStamp(group.stampId)"
             :aria-label="`スタンプ ${getStampDisplayName(group.stampId)} (${group.totalCount}回)`"
+        >
+            <img
+                v-if="getStampImageUrl(group.stampId)"
+                :src="getStampImageUrl(group.stampId)"
+                alt="stamp"
+                class="stamp-image"
+                referrerpolicy="no-referrer"
+                loading="lazy"
+                @error="
+                    (e) => {
+                        ;(e.target as HTMLImageElement).style.display = 'none'
+                    }
+                "
+            />
+            <span v-else class="stamp-name-fallback">
+                :{{ getStamp(group.stampId)?.name || '?' }}:
+            </span>
+            <span class="stamp-count">{{ group.totalCount }}</span>
+        </span>
+
+        <!-- 削除アニメーション中のスタンプを一時表示 -->
+        <span
+            v-for="[stampId, group] of removingStamps"
+            :key="`removing-${stampId}`"
+            class="stamp-item animate-remove"
+            :class="{ pinned: group.isPinned }"
+            role="button"
+            :aria-label="`スタンプ ${getStampDisplayName(group.stampId)} (削除中)`"
         >
             <img
                 v-if="getStampImageUrl(group.stampId)"
@@ -232,6 +345,56 @@ const openPalette = (event: MouseEvent) => {
     position: relative;
 }
 
+/* ============================================
+   アニメーション定義
+   ============================================ */
+@keyframes slideInFromBottom {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideOutToBottom {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+}
+
+@keyframes drumRollUp {
+    from {
+        transform: translateY(10px);
+        opacity: 0.5;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes drumRollDown {
+    from {
+        transform: translateY(-10px);
+        opacity: 0.5;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ============================================
+   スタンプアイテムのスタイルとアニメーション
+   ============================================ */
 .stamp-item {
     display: flex;
     align-items: center;
@@ -245,6 +408,22 @@ const openPalette = (event: MouseEvent) => {
     cursor: pointer;
     user-select: none;
     transition: background 0.15s;
+}
+
+.stamp-item.animate-add {
+    animation: slideInFromBottom 0.2s ease-out forwards;
+}
+
+.stamp-item.animate-remove {
+    animation: slideOutToBottom 0.2s ease-out forwards;
+}
+
+.stamp-item.animate-count-up .stamp-count {
+    animation: drumRollUp 0.2s ease-out forwards;
+}
+
+.stamp-item.animate-count-down .stamp-count {
+    animation: drumRollDown 0.2s ease-out forwards;
 }
 
 .stamp-item:hover {
