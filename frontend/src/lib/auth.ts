@@ -47,7 +47,7 @@ function shouldBlockRedirect(): boolean {
         attempts = { count: 0, windowStart: now }
     }
     attempts.count += 1
-    sessionStorage.setItem(REDIRECT_ATTEMPTS_STORAGE_NAME, JSON.stringify(attempts))
+    sessionStorage.setItem(REDIRECT_ATTEMPTS_STORAGE_NAME, JSON.stringify(attempts)) // codeql[js/clear-text-storage-of-sensitive-data] 保存するのは試行回数とタイムスタンプのみで、認証情報や個人情報は含まない
     return attempts.count > MAX_REDIRECT_ATTEMPTS
 }
 
