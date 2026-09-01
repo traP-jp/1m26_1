@@ -16,6 +16,10 @@ func marshalWebSocketEvent(event any) ([]byte, error) {
 			var result openapi.UserWebSocketEvent
 			var err error
 			switch event := event.(type) {
+			case openapi.InitializedEvent:
+				err = result.FromInitializedEvent(event)
+			case openapi.CountReachingThresholdEvent:
+				err = result.FromCountReachingThresholdEvent(event)
 			case openapi.MessageCreatedEvent:
 				err = result.FromMessageCreatedEvent(event)
 			case openapi.MessageDeletedEvent:
