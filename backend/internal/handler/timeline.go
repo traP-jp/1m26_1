@@ -16,16 +16,12 @@ import (
 )
 
 type TimelineHandler struct {
-	lastUpdate      time.Time
-	bottomMessage   time.Time
 	timelineService *service.TimelineService
 	traq            *TraQClient
 }
 
 func NewTimelineHandler(timelineService *service.TimelineService, traq *TraQClient) *TimelineHandler {
 	return &TimelineHandler{
-		lastUpdate:      time.Now(),
-		bottomMessage:   time.Now(),
 		timelineService: timelineService,
 		traq:            traq,
 	}
@@ -78,17 +74,17 @@ type StampsReceived struct {
 	Count   Count     `json:"count"`
 }
 
-func (t *TraQClient) GetActivity(ctx context.Context, token, sbp, query string) (*[]TimelineDetailed, *time.Time, *time.Time, error) {
+func (t *TraQClient) GetActivity(ctx context.Context, token, sbp, query string) (*[]TimelineDetailed, error) {
 	var res MessagesResponse
 	if err := t.get(ctx, token, "/messages?bot=false&limit=100&"+query, &res); err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 	res4 := res.Content
 	res_d := make([]TimelineDetailed, len(res4))
 	for i, v := range res4 {
 		var res2 []StampsReceived
 		if err := t.get(ctx, token, "/messages/"+v.MessageID.String()+"/stamps", &res2); err != nil {
-			return nil, nil, nil, err
+			return nil, err
 		}
 		sc := 0
 		sc2 := 0
@@ -124,13 +120,7 @@ func (t *TraQClient) GetActivity(ctx context.Context, token, sbp, query string) 
 			return res_d[i].StampCount > res_d[j].StampCount
 		})
 	}
-	u := time.Now()
-	// 該当メッセージが 0 件のこともあるので、最古のメッセージ時刻は取得できた場合のみ返す。
-	oldest := u
-	if len(res_d) > 0 {
-		oldest = res_d[len(res_d)-1].CreatedAt
-	}
-	return &res_d, &u, &oldest, nil
+	return &res_d, nil
 }
 
 func (t *TraQClient) GetStamps(ctx context.Context, token, id string) (*Stamps, error) {
@@ -169,44 +159,49 @@ func (t *TraQClient) GetAuthor(ctx context.Context, token, id string) (*AuthorRe
 
 func (h *TimelineHandler) GetTimeline(c echo.Context) error {
 	params := c.QueryParams()
-	if !(params.Has("SortByPopularity")) {
+	if !(params.Has("sortByPopularity")) {
 		return c.JSON(http.StatusBadRequest, openapi.Error{Message: "sortByPopularity is required"})
+	}
+	before := time.Now().UTC().Format(time.RFC3339)
+	if params.Has("before") {
+		before = params.Get("before")
 	}
 	user, ok := authmiddleware.GetAuthenticatedUser(c)
 	if !ok {
 		return c.JSON(http.StatusUnauthorized, openapi.Error{Message: "Unauthorized"})
 	}
-	res, _, bm, err := h.traq.GetActivity(
+	res, err := h.traq.GetActivity(
 		c.Request().Context(), user.Session,
-		params.Get("SortByPopularity"),
-		"before="+h.bottomMessage.UTC().Format(time.RFC3339),
+		params.Get("sortByPopularity"),
+		"before="+before,
 	)
 	if err != nil {
 		log.Printf("get timeline: %v", err)
 		return c.JSON(http.StatusBadGateway, openapi.Error{Message: "Failed to fetch the timeline from traQ"})
 	}
-	h.bottomMessage = *bm
 	return c.JSON(http.StatusOK, *res)
 }
 
 func (h *TimelineHandler) GetIn(c echo.Context) error {
 	params := c.QueryParams()
-	if !(params.Has("SortByPopularity")) {
+	if !(params.Has("sortByPopularity")) {
 		return c.JSON(http.StatusBadRequest, openapi.Error{Message: "sortByPopularity is required"})
+	}
+	if !(params.Has("after")) {
+		return c.JSON(http.StatusBadRequest, openapi.Error{Message: "after is required"})
 	}
 	user, ok := authmiddleware.GetAuthenticatedUser(c)
 	if !ok {
 		return c.JSON(http.StatusUnauthorized, openapi.Error{Message: "Unauthorized"})
 	}
-	res, lu, _, err := h.traq.GetActivity(
+	res, err := h.traq.GetActivity(
 		c.Request().Context(), user.Session,
 		params.Get("SortByPopularity"),
-		"after="+h.lastUpdate.UTC().Format(time.RFC3339),
+		"after="+params.Get("after"),
 	)
 	if err != nil {
 		log.Printf("get new messages: %v", err)
 		return c.JSON(http.StatusBadGateway, openapi.Error{Message: "Failed to fetch new messages from traQ"})
 	}
-	h.lastUpdate = *lu
 	return c.JSON(http.StatusOK, *res)
 }
