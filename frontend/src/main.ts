@@ -7,6 +7,9 @@ import App from './App.vue'
 import router from './router'
 import { startMockWorker } from './mocks'
 import './styles/main.css'
+import '@traptitech/traq-markdown-it/index.css'
+import 'katex/dist/katex.min.css'
+
 
 async function bootstrap() {
     await startMockWorker()

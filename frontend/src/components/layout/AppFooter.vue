@@ -55,6 +55,9 @@ onUnmounted(() => {
 .app-footer {
     position: sticky;
     bottom: 0;
+    /* ヘッダーと同様、後続 DOM のコードブロック（position: relative）に
+       上書きされないよう明示的に前面へ */
+    z-index: 20;
     width: 100%;
     border-top: 1px solid var(--surface-border-secondary);
     background: var(--surface-translucent, rgba(255, 255, 255, 0.8));

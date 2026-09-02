@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import type { Message } from '../../types/traq'
 import { useUserStore } from '../../stores/userStore'
-// import AttachmentList from './AttachmentList.vue';
-// AttachmentListはまだ使わないのでコメントアウト
+import AttachmentList from './AttachmentList.vue'
 import MessageBody from './MessageBody.vue'
 import MessageHeader from './MessageHeader.vue'
+import QuoteList from './QuoteList.vue'
 import StampList from './StampList.vue'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const userStore = useUserStore()
 const props = defineProps<{ message: Message }>()
 const iconUrl = computed(() => userStore.getIconUrl(props.message.userId))
+const attachmentFileIds = ref<string[]>([])
+const quotedMessageIds = ref<string[]>([])
 
 const emit = defineEmits<{
     (e: 'open-palette', messageId: string, position: { x: number; y: number }): void
@@ -33,7 +35,13 @@ const emit = defineEmits<{
         </div>
         <div class="message-area">
             <MessageHeader :message="message" />
-            <MessageBody :content="message.content" />
+            <MessageBody
+                :content="message.content"
+                @attachments="(ids) => (attachmentFileIds = ids)"
+                @quotes="(ids) => (quotedMessageIds = ids)"
+            />
+            <QuoteList v-if="quotedMessageIds.length" :message-ids="quotedMessageIds" />
+            <AttachmentList v-if="attachmentFileIds.length" :file-ids="attachmentFileIds" />
             <StampList
                 :stamps="message.stamps"
                 :message-id="message.id"
@@ -70,6 +78,8 @@ const emit = defineEmits<{
 }
 .message-area {
     flex-grow: 1;
+    /* 既定の min-width: auto だと、コード行など折り返せない中身が本文幅を押し広げてしまう */
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 8px;
