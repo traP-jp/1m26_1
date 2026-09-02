@@ -172,7 +172,7 @@ func (h *TimelineHandler) GetTimeline(c echo.Context) error {
 	}
 	res, err := h.traq.GetActivity(
 		c.Request().Context(), user.Session,
-		params.Get("SortByPopularity"),
+		params.Get("sortByPopularity"),
 		"before="+before,
 	)
 	if err != nil {
@@ -196,7 +196,7 @@ func (h *TimelineHandler) GetIn(c echo.Context) error {
 	}
 	res, err := h.traq.GetActivity(
 		c.Request().Context(), user.Session,
-		params.Get("SortByPopularity"),
+		params.Get("sortByPopularity"),
 		"after="+params.Get("after"),
 	)
 	if err != nil {
