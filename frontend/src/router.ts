@@ -29,16 +29,24 @@ const router = createRouter({
 // ============================================
 // 認証ガード（遷移をキャンセルしてからリダイレクト）
 // ============================================
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
     const authStore = useAuthStore()
 
     // 認証が必要なルートで、かつコールバック（codeあり）でない場合
     if (to.meta.requiresAuth && !to.query.code && !authStore.isAuthenticated) {
         sessionStorage.setItem('login_redirect', to.fullPath)
-        // リダイレクトを開始（同期的に実行）
-        initiateLogin()
-        // 遷移をキャンセル（これでコンポーネントはマウントされない）
-        return false
+        try {
+            // リダイレクトを開始（traQ 側へブラウザごと遷移する）
+            await initiateLogin()
+            // 遷移をキャンセル（これでコンポーネントはマウントされない）
+            return false
+        } catch (error) {
+            // サーキットブレーカーが作動した場合など、traQ への
+            // リダイレクトを行わない。ルートはそのまま表示させ、
+            // コンポーネント側にエラー表示を任せる。
+            console.error('ログインへのリダイレクトを中止しました:', error)
+            return true
+        }
     }
 
     return true

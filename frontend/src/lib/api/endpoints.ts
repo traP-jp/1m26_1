@@ -1,4 +1,5 @@
 import type { components } from '../../gen/api-types'
+import { useAuthStore } from '../../stores/authStore'
 import { apiBaseUrl } from './client'
 
 export const endpoints = {
@@ -21,14 +22,32 @@ function createApiUrl(path: string): URL {
     return new URL(path, apiBaseUrl)
 }
 
+/** skipAuth を指定すると Authorization ヘッダを付けない（認証前のリクエスト用）。 */
+type ApiRequestInit = RequestInit & { skipAuth?: boolean }
+
+/**
+ * バックエンド向けのリクエストヘッダを組み立てる。
+ * バックエンドは Authorization: Bearer からログイン中のユーザーを解決する。
+ */
+function buildHeaders(init?: ApiRequestInit): HeadersInit | undefined {
+    const headers = new Headers(init?.headers)
+    if (!init?.skipAuth) {
+        const token = useAuthStore().accessToken
+        if (token) {
+            headers.set('Authorization', `Bearer ${token}`)
+        }
+    }
+    return headers
+}
+
 /**
  * APIリクエストを送信し、JSONレスポンスを返す。
  * @param path - エンドポイントパス（例: '/api/users/me'）
- * @param init - 追加の fetch オプション（例: { credentials: 'include' }）
+ * @param init - 追加の fetch オプション（例: { skipAuth: true }）
  */
-async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+async function requestJson<T>(path: string, init?: ApiRequestInit): Promise<T> {
     const url = createApiUrl(path)
-    const response = await fetch(url.toString(), init)
+    const response = await fetch(url.toString(), { ...init, headers: buildHeaders(init) })
     if (!response.ok) {
         // エラーボディがあれば含める
         const errorBody = await response.text().catch(() => '')
@@ -69,7 +88,7 @@ export async function getTimeline(sortByPopularity = false): Promise<ApiTimeline
 export async function getTimelineNew(sortByPopularity = false): Promise<ApiTimelineMessage | null> {
     const url = createApiUrl(endpoints.timelineNew)
     url.searchParams.set('SortByPopularity', String(sortByPopularity))
-    const response = await fetch(url.toString())
+    const response = await fetch(url.toString(), { headers: buildHeaders() })
     if (response.status === 204) {
         return null
     }
@@ -95,16 +114,22 @@ export function createWebSocket(path = endpoints.websocket): WebSocket {
 /**
  * 認可コードをアクセストークンと交換する。
  * @param code - traQ から取得した認可コード
+ * @param codeVerifier - PKCE のベリファイア
  * @returns OAuth レスポンス（アクセストークン等）
  */
-export async function exchangeOAuthCode(code: string): Promise<OAuthResponse> {
+export async function exchangeOAuthCode(
+    code: string,
+    codeVerifier: string,
+): Promise<OAuthResponse> {
+    // このエンドポイントだけは認証前に叩くため、Authorization は付けない。
+    // Cookie も使わないので credentials も不要。
     return requestJson<OAuthResponse>(endpoints.oauthToken, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ code }),
-        credentials: 'include',
+        body: JSON.stringify({ code, code_verifier: codeVerifier }),
+        skipAuth: true,
     })
 }
 

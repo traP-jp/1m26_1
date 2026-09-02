@@ -32,20 +32,24 @@ func New(cfg config.Config) *echo.Echo {
 }
 
 func registerRoutes(e *echo.Echo, cfg config.Config) {
+	traqClient := handler.NewTraQClient(cfg.TraQBaseURL)
+
 	healthHandler := handler.NewHealthHandler()
-	userHandler := handler.NewUserHandler()
-	OAuthHandler := handler.NewOAuthHandler()
+	userHandler := handler.NewUserHandler(traqClient)
 	timelineRepository := repository.NewTimelineRepository()
+	// Hub は 1 つだけ作り、OAuth ハンドラ（traQ からのイベント受信側）と
+	// タイムライン WebSocket（ブラウザへの配信側）で共有する。
 	webSocketHub := handler.NewWebSocketHub()
+	OAuthHandler := handler.NewOAuthHandler(webSocketHub, cfg, traqClient)
 	eventSender := handler.NewWebSocketEventSender(webSocketHub)
 	timelineService := service.NewTimelineService(*timelineRepository, eventSender)
-	timelineHandler := handler.NewTimelineHandler(timelineService)
-	timelineWebSocketHandler := handler.NewTimelineWebSocketHandler(timelineService, webSocketHub, cfg.CORSAllowOrigins)
+	timelineHandler := handler.NewTimelineHandler(timelineService, traqClient)
+	timelineWebSocketHandler := handler.NewTimelineWebSocketHandler(timelineService, webSocketHub, cfg.CORSAllowOriginHosts())
 
 	e.GET("/healthz", healthHandler.Get)
 
 	api := e.Group("/api")
-	api.Use(authmiddleware.ForwardedUser)
+	api.Use(authmiddleware.Authenticate(traqClient.ResolveUserByToken))
 	api.GET("/users/me", userHandler.GetMe)
 	api.GET("/users/:userId", userHandler.GetUser)
 	api.POST("/oauth/token", OAuthHandler.OAuth)

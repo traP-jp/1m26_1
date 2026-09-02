@@ -9,8 +9,12 @@ import (
 )
 
 type ExternalWebSocketClient struct {
-	hub    *WebSocketHub
-	cookie *http.Cookie
+	hub *WebSocketHub
+	// token は traQ のアクセストークン。traQ の API v3 は OAuth2 / Bearer 認証で
+	// アクセスする（r_session クッキーは traQ 本体の Web クライアント用の
+	// セッションであり、別オリジンの本アプリには届かない）。
+	token string
+	traq  *TraQClient
 }
 
 type WebSocketEvent struct {
@@ -31,18 +35,19 @@ type SimpleBody struct {
 	Id string `json:"message_id"`
 }
 
-func NewExternalWebSocketClient(hub *WebSocketHub, cookie *http.Cookie) *ExternalWebSocketClient {
+func NewExternalWebSocketClient(hub *WebSocketHub, token string, traq *TraQClient) *ExternalWebSocketClient {
 	return &ExternalWebSocketClient{
-		hub:    hub,
-		cookie: cookie,
+		hub:   hub,
+		token: token,
+		traq:  traq,
 	}
 }
 
 func (c *ExternalWebSocketClient) Run(ctx context.Context) error {
 	header := http.Header{}
-	header.Set("Cookie", c.cookie.String())
+	header.Set("Authorization", "Bearer "+c.token)
 
-	conn, _, err := websocket.Dial(ctx, "https://q.trap.jp/api/ws", &websocket.DialOptions{
+	conn, _, err := websocket.Dial(ctx, c.traq.WebSocketURL(), &websocket.DialOptions{
 		HTTPHeader: header,
 	})
 	if err != nil {
@@ -65,7 +70,7 @@ func (c *ExternalWebSocketClient) Run(ctx context.Context) error {
 		case "MESSAGE_CREATED":
 			var id SimplestBody
 			json.Unmarshal([]byte(received.Body), &id)
-			author, err := GetAuthor(id.Id)
+			author, err := c.traq.GetAuthor(ctx, c.token, id.Id)
 			if err != nil {
 				return err
 			}
@@ -109,7 +114,7 @@ func (c *ExternalWebSocketClient) Run(ctx context.Context) error {
 		case "MESSAGE_STAMPED":
 			var id SimpleBody
 			json.Unmarshal([]byte(received.Body), &id)
-			res, err := GetStamps(id.Id)
+			res, err := c.traq.GetStamps(ctx, c.token, id.Id)
 			if err != nil {
 				return err
 			}
@@ -121,7 +126,7 @@ func (c *ExternalWebSocketClient) Run(ctx context.Context) error {
 		case "MESSAGE_UNSTAMPED":
 			var id SimpleBody
 			json.Unmarshal([]byte(received.Body), &id)
-			res, err := GetStamps(id.Id)
+			res, err := c.traq.GetStamps(ctx, c.token, id.Id)
 			if err != nil {
 				return err
 			}
