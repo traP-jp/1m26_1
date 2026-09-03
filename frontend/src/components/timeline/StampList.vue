@@ -99,8 +99,6 @@ watchEffect(() => {
 
     // 新しいアニメーションをリセット
     const newAnimatingStamps = new Map<string, 'add' | 'remove' | 'count-up' | 'count-down'>()
-    const newRemovingStamps = new Map<string, StampGroup>()
-
     // 前フレームに存在したスタンプのstampId:stampのマップを作成（比較用）
     const previousMap = new Map(previous.map((g) => [g.stampId, g]))
     const currentMap = new Map(current.map((g) => [g.stampId, g]))
@@ -130,8 +128,6 @@ watchEffect(() => {
         if (!currentMap.has(prevGroup.stampId)) {
             // スタンプが削除された
             newAnimatingStamps.set(prevGroup.stampId, 'remove')
-            newRemovingStamps.set(prevGroup.stampId, prevGroup)
-
             // 200ms 後にアニメーション状態と一時保持を削除
             scheduleAnimationCleanup(prevGroup.stampId)
         }
@@ -145,8 +141,6 @@ watchEffect(() => {
 const hoveredStampId = ref<string | null>(null)
 const tooltipPosition = ref({ x: 0, y: 0 })
 const isHoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)').matches
-const addAnimationStampId = computed(() => timelineStore.addAnimationStampId)
-const removeAnimationStampId = computed(() => timelineStore.removeAnimationStampId)
 
 const hoveredGroup = computed(() => {
     if (!hoveredStampId.value) return null
@@ -192,6 +186,8 @@ const toggleStamp = async (stampId: string) => {
     const myEntry = props.stamps.find((s) => s.stampId === stampId && s.userId === authStore.userId)
     const pinned = !!myEntry
 
+    let updatedStamps = [...props.stamps]
+
     if (pinned) {
         updatedStamps = updatedStamps
             .map((s) => {
@@ -204,20 +200,24 @@ const toggleStamp = async (stampId: string) => {
     } else {
         const now = new Date().toISOString()
         updatedStamps.push({
-            stampId: stampId,
+            stampId,
             count: 1,
             userId: authStore.userId!,
             createdAt: now,
             updatedAt: now,
-        },
-    ]
+        })
+    }
 
     timelineStore.updateMessageStamps(props.messageId, updatedStamps)
 
     try {
-        await traqApi.pinStamp(props.messageId, stampId)
+        if (pinned) {
+            await traqApi.unpinStamp(props.messageId, stampId)
+        } else {
+            await traqApi.pinStamp(props.messageId, stampId)
+        }
     } catch (error) {
-        console.error('スタンプ追加に失敗:', error)
+        console.error('スタンプ操作に失敗:', error)
         timelineStore.updateMessageStamps(props.messageId, props.stamps)
     }
 }
