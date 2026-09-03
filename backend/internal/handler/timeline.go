@@ -36,19 +36,6 @@ type TimelineReceived struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-type Stamp struct {
-	// Count 自然数
-	Count Count `json:"count"`
-
-	// ID UUID
-	ID uuid.UUID `json:"id"`
-}
-
-type Stamps struct {
-	OthersCount int     `json:"othersCount,omitempty"`
-	Superior    []Stamp `json:"superior"`
-}
-
 type TimelineDetailed struct {
 	MessageID  uuid.UUID `json:"id"`
 	UserID     uuid.UUID `json:"userId"`
@@ -57,7 +44,7 @@ type TimelineDetailed struct {
 	CreatedAt  time.Time `json:"createdAt"`
 	UpdatedAt  time.Time `json:"updatedAt"`
 	StampCount Count     `json:"popularity"`
-	Stamps     Stamps    `json:"stamps"`
+	Stamps     []Stamp   `json:"stamps"`
 }
 
 type MessagesResponse struct {
@@ -68,10 +55,12 @@ type AuthorResponse struct {
 	UserID uuid.UUID `json:"userId"`
 }
 
-type StampsReceived struct {
-	StampID uuid.UUID `json:"stampId"`
-	UserID  uuid.UUID `json:"userId"`
-	Count   Count     `json:"count"`
+type Stamp struct {
+	StampID   uuid.UUID `json:"stampId"`
+	UserID    uuid.UUID `json:"userId"`
+	Count     Count     `json:"count"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 func (t *TraQClient) GetActivity(ctx context.Context, token, sbp, query string) (*[]TimelineDetailed, error) {
@@ -82,23 +71,13 @@ func (t *TraQClient) GetActivity(ctx context.Context, token, sbp, query string) 
 	res4 := res.Content
 	res_d := make([]TimelineDetailed, len(res4))
 	for i, v := range res4 {
-		var res2 []StampsReceived
+		var res2 []Stamp
 		if err := t.get(ctx, token, "/messages/"+v.MessageID.String()+"/stamps", &res2); err != nil {
 			return nil, err
 		}
 		sc := 0
-		sc2 := 0
-		res3 := make([]Stamp, min(5, len(res2)))
-		for i, v := range res2 {
+		for _, v := range res2 {
 			sc += v.Count
-			if i < 5 {
-				res3[i] = Stamp{
-					ID:    v.StampID,
-					Count: v.Count,
-				}
-			} else {
-				sc2 += 1
-			}
 		}
 		res_d[i] = TimelineDetailed{
 			MessageID:  v.MessageID,
@@ -108,10 +87,7 @@ func (t *TraQClient) GetActivity(ctx context.Context, token, sbp, query string) 
 			CreatedAt:  v.CreatedAt,
 			UpdatedAt:  v.UpdatedAt,
 			StampCount: sc,
-			Stamps: Stamps{
-				OthersCount: sc2,
-				Superior:    res3,
-			},
+			Stamps:     res2,
 		}
 	}
 
@@ -123,30 +99,12 @@ func (t *TraQClient) GetActivity(ctx context.Context, token, sbp, query string) 
 	return &res_d, nil
 }
 
-func (t *TraQClient) GetStamps(ctx context.Context, token, id string) (*Stamps, error) {
-	var res2 []StampsReceived
+func (t *TraQClient) GetStamps(ctx context.Context, token, id string) (*[]Stamp, error) {
+	var res2 []Stamp
 	if err := t.get(ctx, token, "/messages/"+id+"/stamps", &res2); err != nil {
 		return nil, err
 	}
-	sort.Slice(res2, func(i, j int) bool {
-		return res2[i].Count > res2[j].Count
-	})
-	sup := make([]Stamp, min(len(res2), 5))
-	ot := 0
-	for i, v := range res2 {
-		if i < 5 {
-			sup[i] = Stamp{
-				ID:    v.StampID,
-				Count: v.Count,
-			}
-		} else {
-			ot += v.Count
-		}
-	}
-	return &Stamps{
-		Superior:    sup,
-		OthersCount: ot,
-	}, nil
+	return &res2, nil
 }
 
 func (t *TraQClient) GetAuthor(ctx context.Context, token, id string) (*AuthorResponse, error) {
