@@ -33,23 +33,12 @@ const timelineStore = useTimelineStore()
 const previousGroupedStamps = ref<StampGroup[]>([])
 /** アニメーション中のスタンプとそのタイプを管理 */
 const animatingStamps = ref<Map<string, 'add' | 'remove' | 'count-up' | 'count-down'>>(new Map())
-/** 削除アニメーション中のスタンプを一時的に保持 */
-const removingStamps = ref<Map<string, StampGroup>>(new Map())
 
 // ============================================
 // 1. スタンプをグループ化（表示用）
 // ============================================
 const groupedStamps = computed(() => {
-    const groups = new Map<
-        string,
-        {
-            stampId: string
-            totalCount: number
-            isPinned: boolean
-            entries: { userId: string; createdAt: string }[]
-            createdAt: string
-        }
-    >()
+    const groups = new Map<string,StampGroup>()
 
     for (const s of props.stamps) {
         const group = groups.get(s.stampId)
@@ -144,13 +133,11 @@ watchEffect(() => {
             // 200ms 後にアニメーション状態と一時保持を削除
             setTimeout(() => {
                 animatingStamps.value.delete(prevGroup.stampId)
-                removingStamps.value.delete(prevGroup.stampId)
                 updateAnimationVariables()
             }, 200)
         }
     }
     animatingStamps.value = newAnimatingStamps
-    removingStamps.value = newRemovingStamps
 })
 
 // ============================================
