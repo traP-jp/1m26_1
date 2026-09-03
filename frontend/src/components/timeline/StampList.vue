@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watchEffect } from 'vue'
+import { computed, onUnmounted, ref, watchEffect } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
 import { useStampStore } from '../../stores/stampStore'
 import { useTimelineStore } from '../../stores/timelineStore'
@@ -33,12 +33,27 @@ const timelineStore = useTimelineStore()
 const previousGroupedStamps = ref<StampGroup[]>([])
 /** アニメーション中のスタンプとそのタイプを管理 */
 const animatingStamps = ref<Map<string, 'add' | 'remove' | 'count-up' | 'count-down'>>(new Map())
+const animationTimers = new Set<ReturnType<typeof setTimeout>>()
+
+const scheduleAnimationCleanup = (stampId: string) => {
+    const timer = setTimeout(() => {
+        animationTimers.delete(timer)
+        animatingStamps.value.delete(stampId)
+        previousGroupedStamps.value = groupedStamps.value
+    }, 200)
+    animationTimers.add(timer)
+}
+
+onUnmounted(() => {
+    for (const timer of animationTimers) clearTimeout(timer)
+    animationTimers.clear()
+})
 
 // ============================================
 // 1. スタンプをグループ化（表示用）
 // ============================================
 const groupedStamps = computed(() => {
-    const groups = new Map<string,StampGroup>()
+    const groups = new Map<string, StampGroup>()
 
     for (const s of props.stamps) {
         const group = groups.get(s.stampId)
@@ -90,10 +105,6 @@ watchEffect(() => {
     const previousMap = new Map(previous.map((g) => [g.stampId, g]))
     const currentMap = new Map(current.map((g) => [g.stampId, g]))
 
-    // 状態を更新
-    const updateAnimationVariables = () => {
-        previousGroupedStamps.value = current
-    }
     // 現在のスタンプを走査
     for (const currentGroup of current) {
         const prevGroup = previousMap.get(currentGroup.stampId)
@@ -102,24 +113,15 @@ watchEffect(() => {
             // 新しいスタンプが追加された
             newAnimatingStamps.set(currentGroup.stampId, 'add')
             // 200ms 後にアニメーション状態を削除
-            setTimeout(() => {
-                animatingStamps.value.delete(currentGroup.stampId)
-                updateAnimationVariables()
-            }, 200)
+            scheduleAnimationCleanup(currentGroup.stampId)
         } else if (currentGroup.totalCount > prevGroup.totalCount) {
             // スタンプの数が増えた
             newAnimatingStamps.set(currentGroup.stampId, 'count-up')
-            setTimeout(() => {
-                animatingStamps.value.delete(currentGroup.stampId)
-                updateAnimationVariables()
-            }, 200)
+            scheduleAnimationCleanup(currentGroup.stampId)
         } else if (currentGroup.totalCount < prevGroup.totalCount) {
             // スタンプの数が減った
             newAnimatingStamps.set(currentGroup.stampId, 'count-down')
-            setTimeout(() => {
-                animatingStamps.value.delete(currentGroup.stampId)
-                updateAnimationVariables()
-            }, 200)
+            scheduleAnimationCleanup(currentGroup.stampId)
         }
     }
 
@@ -131,10 +133,7 @@ watchEffect(() => {
             newRemovingStamps.set(prevGroup.stampId, prevGroup)
 
             // 200ms 後にアニメーション状態と一時保持を削除
-            setTimeout(() => {
-                animatingStamps.value.delete(prevGroup.stampId)
-                updateAnimationVariables()
-            }, 200)
+            scheduleAnimationCleanup(prevGroup.stampId)
         }
     }
     animatingStamps.value = newAnimatingStamps
