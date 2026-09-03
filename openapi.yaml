@@ -91,7 +91,7 @@ paths:
             summary: タイムラインを取得する。
             operationId: getTimeline
             parameters:
-                - name: SortByPopularity
+                - name: sortByPopularity
                   in: query
                   schema:
                       type: boolean
@@ -124,7 +124,7 @@ paths:
             summary: タイムラインの新しい投稿を取得する。
             operationId: getIn
             parameters:
-                - name: SortByPopularity
+                - name: sortByPopularity
                   in: query
                   schema:
                       type: boolean
@@ -280,10 +280,6 @@ components:
                     $ref: '#/components/schemas/Count'
             required:
                 - userId
-
-        SortByPopularity:
-            type: boolean
-            description: 人気 (True) / 最新 (False)
 
         Error:
             type: object

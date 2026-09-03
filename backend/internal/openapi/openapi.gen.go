@@ -294,9 +294,6 @@ type OAuthResponse struct {
 	TokenType string `json:"token_type"`
 }
 
-// SortByPopularity 人気 (True) / 最新 (False)
-type SortByPopularity = bool
-
 // Stamp defines model for Stamp.
 type Stamp struct {
 	// Count 自然数
@@ -490,13 +487,13 @@ type PostAPIOauthTokenJSONBody struct {
 
 // GetTimelineParams defines parameters for GetTimeline.
 type GetTimelineParams struct {
-	SortByPopularity bool `form:"SortByPopularity" json:"SortByPopularity"`
+	SortByPopularity bool `form:"sortByPopularity" json:"sortByPopularity"`
 	All              bool `form:"all" json:"all"`
 }
 
 // GetInParams defines parameters for GetIn.
 type GetInParams struct {
-	SortByPopularity bool `form:"SortByPopularity" json:"SortByPopularity"`
+	SortByPopularity bool `form:"sortByPopularity" json:"sortByPopularity"`
 	All              bool `form:"all" json:"all"`
 }
 
