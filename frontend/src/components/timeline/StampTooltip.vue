@@ -34,58 +34,65 @@ const sortedEntries = computed(() => {
 </script>
 
 <template>
-    <div
-        class="stamp-tooltip"
-        :style="{
-            left: position.x + 'px',
-            top: position.y + 'px',
-        }"
-    >
-        <div class="tooltip-content">
-            <!-- スタンプ画像 -->
-            <div class="tooltip-stamp">
-                <img
-                    v-if="getStampImageUrl(stampId)"
-                    :src="getStampImageUrl(stampId)"
-                    alt="stamp"
-                    class="tooltip-stamp-image"
-                    referrerpolicy="no-referrer"
-                    loading="lazy"
-                    @error="
-                        (e) => {
-                            ;(e.target as HTMLImageElement).style.display = 'none'
-                        }
-                    "
-                />
-                <span v-else class="tooltip-stamp-name">
-                    :{{ getStamp(stampId)?.name || '?' }}:
-                </span>
-            </div>
+    <!-- 仮想スクローラは各アイテムに transform を掛ける。transform は position: fixed の
+         包含ブロックとスタッキングコンテキストの両方を作るため、この中に置いたままだと
+         (1) clientX/clientY 基準の座標がアイテム原点からの相対になってずれ、
+         (2) z-index: 9999 がアイテム内に閉じ込められ後続のメッセージが上に描かれる。
+         body へ teleport して両方を回避する -->
+    <Teleport to="body">
+        <div
+            class="stamp-tooltip"
+            :style="{
+                left: position.x + 'px',
+                top: position.y + 'px',
+            }"
+        >
+            <div class="tooltip-content">
+                <!-- スタンプ画像 -->
+                <div class="tooltip-stamp">
+                    <img
+                        v-if="getStampImageUrl(stampId)"
+                        :src="getStampImageUrl(stampId)"
+                        alt="stamp"
+                        class="tooltip-stamp-image"
+                        referrerpolicy="no-referrer"
+                        loading="lazy"
+                        @error="
+                            (e) => {
+                                ;(e.target as HTMLImageElement).style.display = 'none'
+                            }
+                        "
+                    />
+                    <span v-else class="tooltip-stamp-name">
+                        :{{ getStamp(stampId)?.name || '?' }}:
+                    </span>
+                </div>
 
-            <!-- スタンプ名 -->
-            <div class="tooltip-name">
-                {{ getStampDisplayName(stampId) }}
-            </div>
+                <!-- スタンプ名 -->
+                <div class="tooltip-name">
+                    {{ getStampDisplayName(stampId) }}
+                </div>
 
-            <!-- ユーザーアイコン（一意なキーを使用） -->
-            <div class="tooltip-users">
-                <img
-                    v-for="entry in sortedEntries"
-                    :key="entry.uid"
-                    :src="getIconUrl(entry.userId)"
-                    alt="user"
-                    class="tooltip-avatar"
-                    referrerpolicy="no-referrer"
-                    loading="lazy"
-                    @error="
-                        (e) => {
-                            ;(e.target as HTMLImageElement).style.display = 'none'
-                        }
-                    "
-                />
+                <!-- ユーザーアイコン（一意なキーを使用） -->
+                <div class="tooltip-users">
+                    <img
+                        v-for="entry in sortedEntries"
+                        :key="entry.uid"
+                        :src="getIconUrl(entry.userId)"
+                        alt="user"
+                        class="tooltip-avatar"
+                        referrerpolicy="no-referrer"
+                        loading="lazy"
+                        @error="
+                            (e) => {
+                                ;(e.target as HTMLImageElement).style.display = 'none'
+                            }
+                        "
+                    />
+                </div>
             </div>
         </div>
-    </div>
+    </Teleport>
 </template>
 
 <style scoped>
@@ -107,7 +114,6 @@ const sortedEntries = computed(() => {
     transform: translate(0, 0);
     font-size: 13px;
     line-height: 1.4;
-    backdrop-filter: blur(2px);
 }
 
 .tooltip-stamp {

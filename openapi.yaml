@@ -107,7 +107,9 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/TimelineMessage'
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/TimelineMessage'
                 '400':
                     $ref: '#/components/responses/BadRequest'
                 '401':
@@ -138,7 +140,9 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/TimelineMessage'
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/TimelineMessage'
                 '204':
                     description: 変更なし。
                 '400':
@@ -287,16 +291,37 @@ components:
 
         TimelineMessage:
             type: object
+            description: タイムラインに並ぶ投稿 1 件。traQ を都度引き直さずに描画できるよう、本文と (ユーザー, スタンプ) 単位のスタンプ全件まで含めて返す。
             properties:
-                messages:
+                id:
+                    $ref: '#/components/schemas/UUID'
+                userId:
+                    $ref: '#/components/schemas/UserId'
+                channelId:
+                    $ref: '#/components/schemas/UUID'
+                content:
+                    type: string
+                createdAt:
+                    type: string
+                    format: date-time
+                updatedAt:
+                    type: string
+                    format: date-time
+                popularity:
+                    $ref: '#/components/schemas/Count'
+                stamps:
                     type: array
-                    minItems: 1
-                    maxItems: 50
-                    uniqueItems: true
                     items:
-                        $ref: '#/components/schemas/UUID'
+                        $ref: '#/components/schemas/Stamp'
             required:
-                - messages
+                - id
+                - userId
+                - channelId
+                - content
+                - createdAt
+                - updatedAt
+                - popularity
+                - stamps
 
         WebSocketEventType:
             type: string
@@ -521,7 +546,9 @@ components:
                 messageId:
                     $ref: '#/components/schemas/UUID'
                 stamps:
-                    $ref: '#/components/schemas/Stamps'
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Stamp'
             required:
                 - messageId
                 - stamps
@@ -561,26 +588,25 @@ components:
             required:
                 - stampId
 
-        Stamps:
-            type: object
-            properties:
-                superior:
-                    type: array
-                    maxItems: 5
-                    items:
-                        $ref: '#/components/schemas/Stamp'
-                othersCount:
-                    type: integer
-            required:
-                - superior
-
         Stamp:
             type: object
+            description: メッセージに対する (ユーザー, スタンプ) ごとの押下 1 件。
             properties:
-                id:
+                stampId:
                     $ref: '#/components/schemas/UUID'
+                userId:
+                    $ref: '#/components/schemas/UserId'
                 count:
                     $ref: '#/components/schemas/Count'
+                createdAt:
+                    type: string
+                    format: date-time
+                updatedAt:
+                    type: string
+                    format: date-time
             required:
-                - id
+                - stampId
+                - userId
                 - count
+                - createdAt
+                - updatedAt

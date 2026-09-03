@@ -4,22 +4,15 @@ import { useAuthStore } from '../../stores/authStore'
 import { useStampStore } from '../../stores/stampStore'
 import { useTimelineStore } from '../../stores/timelineStore'
 import { traqApi } from '../../lib/api/traq'
+import { addStamp, groupStamps, hasMyStamp, removeStamp, type StampGroup } from '../../lib/stamps'
 import StampTooltip from './StampTooltip.vue'
-import type { traQcomponents } from '../../types/traq'
+import type { components } from '../../gen/api-types'
 
-type MessageStamp = traQcomponents['schemas']['MessageStamp']
-type StampGroup = {
-    stampId: string
-    totalCount: number
-    isPinned: boolean
-    entries: { userId: string; createdAt: string }[]
-    createdAt: string
-}
+type Stamp = components['schemas']['Stamp']
 
 const props = defineProps<{
     messageId: string
-    stamps: MessageStamp[]
-    othersCount?: number
+    stamps: Stamp[]
 }>()
 
 const authStore = useAuthStore()
@@ -52,42 +45,9 @@ onUnmounted(() => {
 // ============================================
 // 1. スタンプをグループ化（表示用）
 // ============================================
-const groupedStamps = computed(() => {
-    const groups = new Map<string, StampGroup>()
-
-    for (const s of props.stamps) {
-        const group = groups.get(s.stampId)
-        if (group) {
-            group.totalCount += s.count
-            // ★ count 回分 entries に追加
-            for (let i = 0; i < s.count; i++) {
-                group.entries.push({ userId: s.userId, createdAt: s.createdAt })
-            }
-            if (s.createdAt < group.createdAt) {
-                group.createdAt = s.createdAt
-            }
-        } else {
-            groups.set(s.stampId, {
-                stampId: s.stampId,
-                totalCount: s.count,
-                isPinned: s.userId === authStore.userId,
-                entries: Array.from({ length: s.count }, () => ({
-                    userId: s.userId,
-                    createdAt: s.createdAt,
-                })),
-                createdAt: s.createdAt,
-            })
-        }
-    }
-
-    for (const group of groups.values()) {
-        group.isPinned = group.entries.some((e) => e.userId === authStore.userId)
-    }
-
-    return Array.from(groups.values()).sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    )
-})
+// props.stamps はバックエンドが返す (ユーザー, スタンプ) 単位の全件そのもの
+// （traQ への追加フェッチは不要）。表示用にスタンプごとへまとめるだけ。
+const groupedStamps = computed(() => groupStamps(props.stamps, authStore.userId))
 
 // ============================================
 // 1.5. groupedStamps の変化を監視してアニメーションを制御
@@ -183,32 +143,19 @@ const displayGroupedStamps = computed(() => {
 // 3. スタンプ操作（押す / 解除）
 // ============================================
 const toggleStamp = async (stampId: string) => {
-    const myEntry = props.stamps.find((s) => s.stampId === stampId && s.userId === authStore.userId)
-    const pinned = !!myEntry
+    const userId = authStore.userId
+    if (!userId) return
 
-    let updatedStamps = [...props.stamps]
+    // props.stamps はストア由来なので、楽観的更新の前に元の配列を控えておく
+    // （更新後に読み直すと巻き戻せない）
+    const before = props.stamps
+    const pinned = hasMyStamp(before, stampId, userId)
 
-    if (pinned) {
-        updatedStamps = updatedStamps
-            .map((s) => {
-                if (s.stampId === stampId && s.userId === authStore.userId) {
-                    return { ...s, count: 0 }
-                }
-                return s
-            })
-            .filter((s) => s.count > 0)
-    } else {
-        const now = new Date().toISOString()
-        updatedStamps.push({
-            stampId,
-            count: 1,
-            userId: authStore.userId!,
-            createdAt: now,
-            updatedAt: now,
-        })
-    }
-
-    timelineStore.updateMessageStamps(props.messageId, updatedStamps)
+    // 楽観的更新。消えるアニメーションは groupedStamps の差分から出るので、ここでは待たない
+    timelineStore.updateMessageStamps(
+        props.messageId,
+        pinned ? removeStamp(before, stampId, userId) : addStamp(before, stampId, userId),
+    )
 
     try {
         if (pinned) {
@@ -218,7 +165,7 @@ const toggleStamp = async (stampId: string) => {
         }
     } catch (error) {
         console.error('スタンプ操作に失敗:', error)
-        timelineStore.updateMessageStamps(props.messageId, props.stamps)
+        timelineStore.updateMessageStamps(props.messageId, before)
     }
 }
 
@@ -430,14 +377,6 @@ const openPalette = (event: MouseEvent) => {
     background: #fbe0bb;
 }
 
-.stamp-item--added {
-    animation: fadeInAndMoveUp 0.2s ease-out both;
-}
-
-.stamp-item--removed {
-    animation: fadeOutAndMoveDown 0.2s ease-in both;
-}
-
 .stamp-emoji {
     font-size: 18px;
     line-height: 1;
@@ -504,27 +443,5 @@ const openPalette = (event: MouseEvent) => {
     font-weight: 300;
     line-height: 1;
     transform-origin: center;
-}
-
-@keyframes fadeInAndMoveUp {
-    0% {
-        transform: translateY(16px);
-        opacity: 0.5;
-    }
-    100% {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-@keyframes fadeOutAndMoveDown {
-    0% {
-        transform: translateY(0);
-        opacity: 1;
-    }
-    100% {
-        transform: translateY(16px);
-        opacity: 0.5;
-    }
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Message } from '../../types/traq'
+import type { ApiTimelineMessage } from '../../lib/api/endpoints'
 import { useUserStore } from '../../stores/userStore'
 import AttachmentList from './AttachmentList.vue'
 import MessageBody from './MessageBody.vue'
@@ -9,8 +9,14 @@ import StampList from './StampList.vue'
 import { computed, ref } from 'vue'
 
 const userStore = useUserStore()
-const props = defineProps<{ message: Message }>()
+const props = defineProps<{ message: ApiTimelineMessage }>()
 const iconUrl = computed(() => userStore.getIconUrl(props.message.userId))
+// MessageBody がマークダウンを解析したあとに埋めてくれる。
+// タイムラインは仮想化されておりこのインスタンスは別のメッセージへ使い回されるが、
+// 添付・引用は content だけから決まり、MessageBody が content の変化を watch して
+// 必ず出し直すので、ここで messageId を見てリセットしてはいけない。
+// （そうすると、たまたま本文が同じメッセージに移ったとき MessageBody は再 emit せず、
+//   消しただけで終わってしまう）
 const attachmentFileIds = ref<string[]>([])
 const quotedMessageIds = ref<string[]>([])
 
