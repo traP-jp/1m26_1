@@ -294,13 +294,18 @@ type OAuthResponse struct {
 	TokenType string `json:"token_type"`
 }
 
-// Stamp defines model for Stamp.
+// Stamp メッセージに対する (ユーザー, スタンプ) ごとの押下 1 件。
 type Stamp struct {
 	// Count 自然数
-	Count Count `json:"count"`
+	Count     Count     `json:"count"`
+	CreatedAt time.Time `json:"createdAt"`
 
-	// ID UUID
-	ID UUID `json:"id"`
+	// StampID UUID
+	StampID   UUID      `json:"stampId"`
+	UpdatedAt time.Time `json:"updatedAt"`
+
+	// UserID ユーザーの ID
+	UserID UserID `json:"userId"`
 }
 
 // StampImageReplacedBody defines model for StampImageReplacedBody.
@@ -338,8 +343,8 @@ type StampInfoChangedEventType string
 // StampUpdatedBody defines model for StampUpdatedBody.
 type StampUpdatedBody struct {
 	// MessageID UUID
-	MessageID UUID   `json:"messageId"`
-	Stamps    Stamps `json:"stamps"`
+	MessageID UUID    `json:"messageId"`
+	Stamps    []Stamp `json:"stamps"`
 }
 
 // StampUpdatedEvent defines model for StampUpdatedEvent.
@@ -351,13 +356,7 @@ type StampUpdatedEvent struct {
 // StampUpdatedEventType defines model for StampUpdatedEvent.Type.
 type StampUpdatedEventType string
 
-// Stamps defines model for Stamps.
-type Stamps struct {
-	OthersCount *int    `json:"othersCount,omitempty"`
-	Superior    []Stamp `json:"superior"`
-}
-
-// TimelineMessage タイムラインに並ぶ投稿 1 件。traQ を都度引き直さずに描画できるよう、本文とスタンプの集計値まで含めて返す。
+// TimelineMessage タイムラインに並ぶ投稿 1 件。traQ を都度引き直さずに描画できるよう、本文と (ユーザー, スタンプ) 単位のスタンプ全件まで含めて返す。
 type TimelineMessage struct {
 	// ChannelID UUID
 	ChannelID UUID      `json:"channelId"`
@@ -369,7 +368,7 @@ type TimelineMessage struct {
 
 	// Popularity 自然数
 	Popularity Count     `json:"popularity"`
-	Stamps     Stamps    `json:"stamps"`
+	Stamps     []Stamp   `json:"stamps"`
 	UpdatedAt  time.Time `json:"updatedAt"`
 
 	// UserID ユーザーの ID
