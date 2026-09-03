@@ -18,7 +18,6 @@ type FileInfo = traQcomponents['schemas']['FileInfo']
 type ApiUser = components['schemas']['User']
 type ApiUserProfile = components['schemas']['UserProfile']
 type ApiTimelineMessage = components['schemas']['TimelineMessage']
-type ApiSortByPopularity = components['schemas']['SortByPopularity']
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
 const apiUrl = (path: string): string => new URL(path, API_BASE_URL).toString()
@@ -109037,30 +109036,19 @@ const totalStampCount = (message: Message): number =>
 
 /**
  * traQ の Message を、バックエンドの /api/timeline が返す形に畳む。
- * stamps は (ユーザー, スタンプ) 単位の配列から、スタンプごとの集計値
- * {superior: 上位5件, othersCount: 残りの合計} に変換する。
+ * stamps は (ユーザー, スタンプ) 単位の配列で、traQ の MessageStamp とフィールドが
+ * 一致するのでそのまま渡せる（backend/internal/handler/timeline.go の GetActivity 相当）。
  */
-const toTimelineMessage = (message: Message): ApiTimelineMessage => {
-    const totals = new Map<string, number>()
-    for (const s of message.stamps) {
-        totals.set(s.stampId, (totals.get(s.stampId) ?? 0) + s.count)
-    }
-    const sorted = Array.from(totals.entries()).sort(([, a], [, b]) => b - a)
-
-    return {
-        id: message.id,
-        userId: message.userId,
-        channelId: message.channelId,
-        content: message.content,
-        createdAt: message.createdAt,
-        updatedAt: message.updatedAt,
-        popularity: totalStampCount(message),
-        stamps: {
-            superior: sorted.slice(0, 5).map(([id, count]) => ({ id, count })),
-            othersCount: sorted.slice(5).reduce((sum, [, count]) => sum + count, 0),
-        },
-    }
-}
+const toTimelineMessage = (message: Message): ApiTimelineMessage => ({
+    id: message.id,
+    userId: message.userId,
+    channelId: message.channelId,
+    content: message.content,
+    createdAt: message.createdAt,
+    updatedAt: message.updatedAt,
+    popularity: totalStampCount(message),
+    stamps: message.stamps,
+})
 
 // ★ 複数人が同じスタンプを押しているケースを追加（先頭のメッセージを修正）
 const now = new Date().toISOString()
@@ -109292,7 +109280,7 @@ const oneMonthonHandlers = [
     http.get(apiUrl('/api/timeline'), async ({ request }) => {
         await simulateNetworkDelay(400)
         const params = new URL(request.url).searchParams
-        const isPopular: ApiSortByPopularity = params.get('SortByPopularity') === 'true'
+        const isPopular = params.get('sortByPopularity') === 'true'
         // before 省略 = 最新から。指定時はそれより古い分。
         const before = params.get('before')
 

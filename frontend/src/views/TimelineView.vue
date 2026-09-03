@@ -15,8 +15,7 @@ import { oneMonthonApi } from '../lib/api/endpoints'
 import type { traQcomponents } from '../types/traq'
 import { traqApi } from '../lib/api/traq.ts'
 import { API_CONCURRENCY, mapWithConcurrency } from '../lib/concurrency'
-import { useMessageStampStore } from '../stores/messageStampStore'
-import { addStampToDetail } from '../lib/stamps'
+import { addStamp } from '../lib/stamps'
 import type { components } from '../gen/api-types'
 import StampPalette from '../components/stamp-palette/StampPalette.vue'
 
@@ -29,7 +28,6 @@ const timelineStore = useTimelineStore()
 const userStore = useUserStore()
 const stampStore = useStampStore()
 const newMessageStore = useNewMessageStore()
-const messageStampStore = useMessageStampStore()
 
 const isLoading = ref(true)
 const authError = ref<string | null>(null)
@@ -119,19 +117,19 @@ const onMessageEdited = async (body: { messageIds: string[] }) => {
 /**
  * スタンプ更新イベント
  *
+ * body.stamps は (ユーザー, スタンプ) 単位の全件なので、そのまま置き換えるだけでよい。
+ *
  * 注意: バックエンドの traQ リレー（backend/internal/handler/traQ_websocket.go）は
- * body に Stamps だけを入れており messageId を送ってこないため、実環境では
+ * 現状 body に stamps 配列だけを入れており messageId を送ってこないため、実環境では
  * 下のガードに落ちて何もしない。どのメッセージの更新かはフロントからは判別できないので、
  * 直すのはバックエンド側。ここでは OpenAPI 仕様どおりの body が来た場合を実装しておく。
  */
 const onStampUpdated = (body: components['schemas']['StampUpdatedBody']) => {
-    if (typeof body?.messageId !== 'string' || !Array.isArray(body?.stamps?.superior)) {
+    if (typeof body?.messageId !== 'string' || !Array.isArray(body?.stamps)) {
         warnUnexpectedBody('StampUpdated', body)
         return
     }
     timelineStore.updateMessageStamps(body.messageId, body.stamps)
-    // 集計値には誰が押したかが無いので、ハイライトとツールチップのために詳細も取り直す
-    void messageStampStore.refreshStamps(body.messageId)
 }
 
 /**
@@ -323,30 +321,27 @@ const handleSelectStamp = async (stamp: Stamp) => {
     const userId = authStore.userId
     if (!userId) return
 
-    if (!timelineStore.messages.some((m) => m.id === messageId)) {
+    const targetMessage = timelineStore.messages.find((m) => m.id === messageId)
+    if (!targetMessage) {
         console.warn('対象メッセージが見つかりません')
         return
     }
 
-    // 「既に押しているか」はユーザー単位の詳細にしか無いので、揃うまで待つ
-    await messageStampStore.ensureStamps(messageId)
-    const before = messageStampStore.getStamps(messageId)
-    if (!before) return
-
+    const before = targetMessage.stamps
     const wasPinned = before.some((s) => s.stampId === stampId && s.userId === userId)
     if (!wasPinned) {
         timelineStore.triggerAddStampAnimation(stampId)
     }
 
-    // 楽観的更新。commitDetail が詳細と集計値の両方を進める
-    messageStampStore.commitDetail(messageId, addStampToDetail(before, stampId, userId))
+    // 楽観的更新
+    timelineStore.updateMessageStamps(messageId, addStamp(before, stampId, userId))
 
     try {
         await traqApi.pinStamp(messageId, stampId)
         // 成功 → WebSocket イベントで最終状態に収束（モック環境ではイベントが来ないが、楽観的更新で十分）
     } catch (error) {
         console.error('スタンプ追加に失敗:', error)
-        messageStampStore.commitDetail(messageId, before)
+        timelineStore.updateMessageStamps(messageId, before)
     }
 }
 

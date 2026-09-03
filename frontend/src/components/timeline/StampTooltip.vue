@@ -11,8 +11,6 @@ type Entry = {
 const props = defineProps<{
     stampId: string
     entries: Entry[]
-    /** 押された総数。誰が押したかの詳細がまだ無いときのフォールバック表示に使う。 */
-    totalCount: number
     position: { x: number; y: number }
 }>()
 
@@ -75,13 +73,8 @@ const sortedEntries = computed(() => {
                     {{ getStampDisplayName(stampId) }}
                 </div>
 
-                <!-- 誰が押したかがまだ取れていない間は件数だけ見せる -->
-                <div v-if="sortedEntries.length === 0" class="tooltip-count">
-                    {{ totalCount }} 件
-                </div>
-
                 <!-- ユーザーアイコン（一意なキーを使用） -->
-                <div v-else class="tooltip-users">
+                <div class="tooltip-users">
                     <img
                         v-for="entry in sortedEntries"
                         :key="entry.uid"
@@ -162,12 +155,6 @@ const sortedEntries = computed(() => {
     justify-content: center;
     gap: 4px;
     flex-wrap: wrap;
-}
-
-.tooltip-count {
-    text-align: center;
-    font-size: 12px;
-    color: #6e6e73;
 }
 
 .tooltip-avatar {

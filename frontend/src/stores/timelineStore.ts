@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { oneMonthonApi, type ApiTimelineMessage } from '../lib/api/endpoints'
+import { totalStampCount } from '../lib/stamps'
 
 export const useTimelineStore = defineStore('timeline', () => {
     type TimelineMessage = ApiTimelineMessage
-    type Stamps = ApiTimelineMessage['stamps']
+    /** (ユーザー, スタンプ) 単位の押下 1 件 1 要素の配列。message.stamps の型。 */
+    type MessageStamps = ApiTimelineMessage['stamps']
     // ============================================
     // State
     // ============================================
@@ -162,16 +164,18 @@ export const useTimelineStore = defineStore('timeline', () => {
     }
 
     /**
-     * メッセージのスタンプ集計値を更新する
+     * メッセージのスタンプを更新する
      * @param messageId - メッセージID
-     * @param stamps - 更新後のスタンプ集計値（superior / othersCount）
+     * @param stamps - 更新後の (ユーザー, スタンプ) 単位の全件
      */
-    const updateMessageStamps = (messageId: string, stamps: Stamps) => {
+    const updateMessageStamps = (messageId: string, stamps: MessageStamps) => {
         const index = messages.value.findIndex((m) => m.id === messageId)
         if (index !== -1) {
             const message = messages.value[index]
             if (message) {
                 message.stamps = stamps
+                // popularity はバックエンドでの押下総数と同じ定義なので、ここでも辻褄を合わせる
+                message.popularity = totalStampCount(stamps)
             }
         }
     }
