@@ -3,21 +3,114 @@ import { oneMonthonApi } from '../lib/api/endpoints'
 
 const TRAQ_AUTH_URL = 'https://q.trap.jp/api/v3/oauth2/authorize'
 const CLIENT_ID = import.meta.env.VITE_TRAQ_CLIENT_ID
-const REDIRECT_URI = import.meta.env.VITE_TRAQ_REDIRECT_URI
+
+// traQ の API・WebSocket にアクセスするには read が、スタンプの付与・削除には
+// write が必要。openid / profile は ID Token とプロフィール取得用。
+const SCOPE = 'openid profile read write'
+
+const STATE_KEY = 'oauth_state'
+const CODE_VERIFIER_KEY = 'oauth_code_verifier'
+
+// ============================================
+// traQ へのリダイレクトのサーキットブレーカー
+// ============================================
+// traQ へのリダイレクト（ルーターガード／トークン交換失敗／401 インターセプタ）は
+// 複数箇所から独立に発生しうる。設定ミスなどで毎回失敗すると、これらが際限なく
+// 連鎖し traQ 側のレート制限（429）に達してしまう。sessionStorage で発生回数を
+// 記録し、短時間に繰り返した場合はリダイレクトそのものを止める。
+const REDIRECT_ATTEMPTS_STORAGE_NAME = 'oauth_redirect_attempts'
+const REDIRECT_ATTEMPTS_WINDOW_MS = 30_000
+const MAX_REDIRECT_ATTEMPTS = 3
+
+interface RedirectAttempts {
+    count: number
+    windowStart: number
+}
+
+function readRedirectAttempts(): RedirectAttempts {
+    try {
+        const raw = sessionStorage.getItem(REDIRECT_ATTEMPTS_STORAGE_NAME)
+        if (raw) return JSON.parse(raw) as RedirectAttempts
+    } catch {
+        // 壊れた値は無視して初期状態から数え直す
+    }
+    return { count: 0, windowStart: Date.now() }
+}
+
+/**
+ * traQ へのリダイレクトを 1 回分記録し、直近のウィンドウ内で上限を超えていれば true を返す。
+ */
+function shouldBlockRedirect(): boolean {
+    const now = Date.now()
+    let attempts = readRedirectAttempts()
+    if (now - attempts.windowStart > REDIRECT_ATTEMPTS_WINDOW_MS) {
+        attempts = { count: 0, windowStart: now }
+    }
+    attempts.count += 1
+    sessionStorage.setItem(REDIRECT_ATTEMPTS_STORAGE_NAME, JSON.stringify(attempts)) // codeql[js/clear-text-storage-of-sensitive-data] 保存するのは試行回数とタイムスタンプのみで、認証情報や個人情報は含まない
+    return attempts.count > MAX_REDIRECT_ATTEMPTS
+}
+
+/** ログインに成功したら呼び、次回以降の失敗をゼロから数え直せるようにする。 */
+function resetRedirectAttempts() {
+    sessionStorage.removeItem(REDIRECT_ATTEMPTS_STORAGE_NAME)
+}
+
+/** バイト列を base64url へ変換する（パディング無し）。 */
+function toBase64Url(bytes: Uint8Array): string {
+    let binary = ''
+    for (const byte of bytes) {
+        binary += String.fromCharCode(byte)
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/** PKCE の code_verifier を生成する（RFC 7636 の 43〜128 文字に収まる）。 */
+function generateCodeVerifier(): string {
+    const bytes = new Uint8Array(32)
+    crypto.getRandomValues(bytes)
+    return toBase64Url(bytes)
+}
+
+/** code_verifier から S256 方式の code_challenge を作る。 */
+async function deriveCodeChallenge(verifier: string): Promise<string> {
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
+    return toBase64Url(new Uint8Array(digest))
+}
+
+/** 認可フローで使った一時的な値を消す。 */
+function clearOAuthState() {
+    sessionStorage.removeItem(STATE_KEY)
+    sessionStorage.removeItem(CODE_VERIFIER_KEY)
+}
 
 export async function initiateLogin() {
     if (!CLIENT_ID) throw new Error('VITE_TRAQ_CLIENT_ID が設定されていません')
-    if (!REDIRECT_URI) throw new Error('VITE_TRAQ_REDIRECT_URI が設定されていません')
+
+    if (shouldBlockRedirect()) {
+        throw new Error(
+            '短時間にログインへのリダイレクトが繰り返されたため停止しました。' +
+                'traQ クライアントの設定（client_id・callback URL・scope）を確認し、' +
+                'ページを再読み込みしてから改めてお試しください。',
+        )
+    }
 
     const state = crypto.randomUUID()
-    sessionStorage.setItem('oauth_state', state)
+    const codeVerifier = generateCodeVerifier()
+    const codeChallenge = await deriveCodeChallenge(codeVerifier)
 
+    sessionStorage.setItem(STATE_KEY, state)
+    sessionStorage.setItem(CODE_VERIFIER_KEY, codeVerifier)
+
+    // リダイレクト先は traQ のクライアント登録時に固定されるため、
+    // redirect_uri は送らない（traQ の認可リクエストの仕様に無い）。
     const params = new URLSearchParams({
         response_type: 'code',
         client_id: CLIENT_ID,
-        redirect_uri: REDIRECT_URI,
         state: state,
-        scope: 'openid profile',
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+        scope: SCOPE,
     })
 
     window.location.href = `${TRAQ_AUTH_URL}?${params.toString()}`
@@ -28,9 +121,11 @@ export async function handleOAuthCallback(
     state: string,
     redirectPath: string = '/',
 ): Promise<{ success: boolean; redirectTo: string; error?: string }> {
-    const savedState = sessionStorage.getItem('oauth_state')
+    const savedState = sessionStorage.getItem(STATE_KEY)
+    const codeVerifier = sessionStorage.getItem(CODE_VERIFIER_KEY)
+
     if (!state || state !== savedState) {
-        sessionStorage.removeItem('oauth_state')
+        clearOAuthState()
         return {
             success: false,
             redirectTo: '/',
@@ -38,18 +133,28 @@ export async function handleOAuthCallback(
         }
     }
 
+    if (!codeVerifier) {
+        clearOAuthState()
+        return {
+            success: false,
+            redirectTo: '/',
+            error: '認証セッションが失われました。もう一度お試しください。',
+        }
+    }
+
     try {
-        const response = await oneMonthonApi.exchangeOAuthCode(code)
+        const response = await oneMonthonApi.exchangeOAuthCode(code, codeVerifier)
         const authStore = useAuthStore()
         authStore.setToken(response.access_token)
+        resetRedirectAttempts()
 
         const redirect = sessionStorage.getItem('login_redirect') || redirectPath
         sessionStorage.removeItem('login_redirect')
-        sessionStorage.removeItem('oauth_state')
+        clearOAuthState()
 
         return { success: true, redirectTo: redirect }
     } catch (err) {
-        sessionStorage.removeItem('oauth_state')
+        clearOAuthState()
         const errorMessage = err instanceof Error ? err.message : 'トークン交換に失敗しました。'
         console.error('OAuth トークン交換エラー:', err)
         return {

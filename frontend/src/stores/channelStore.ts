@@ -20,15 +20,33 @@ export const useChannelStore = defineStore('channel', () => {
         isLoading.value = true
         fetchPromise = traqApi
             .getChannels()
-            .then(async (response) => {
+            .then((response) => {
                 // public チャンネルからチャンネル情報を収集（DMは現状使わない）
-                channels.value = new Map(response.public.map((channel) => [channel.id, channel]))
-                await Promise.all(
-                    response.public.map(async (channel) => {
-                        const { path } = await traqApi.getChannelPath(channel.id)
-                        channelPaths.value.set(channel.id, path)
-                    }),
-                )
+                const channelMap = new Map(response.public.map((channel) => [channel.id, channel]))
+                channels.value = channelMap
+
+                // フルパス（例: gps/times/foo）は parentId を辿ってローカルで組み立てる。
+                // 以前はチャンネルごとに GET /channels/{id}/path を叩いており、
+                // 公開チャンネルが数千あると ERR_INSUFFICIENT_RESOURCES / 429 を招いていた。
+                const paths = new Map<string, string>()
+                const buildPath = (id: string, seen: Set<string>): string => {
+                    const cached = paths.get(id)
+                    if (cached !== undefined) return cached
+                    if (seen.has(id)) return '' // 循環（通常は起きない）に対する保険
+                    seen.add(id)
+
+                    const channel = channelMap.get(id)
+                    if (!channel) return ''
+
+                    const parentPath = channel.parentId ? buildPath(channel.parentId, seen) : ''
+                    const full = parentPath ? `${parentPath}/${channel.name}` : channel.name
+                    paths.set(id, full)
+                    return full
+                }
+                for (const id of channelMap.keys()) {
+                    buildPath(id, new Set())
+                }
+                channelPaths.value = paths
             })
             .finally(() => {
                 isLoading.value = false

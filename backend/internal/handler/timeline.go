@@ -1,27 +1,29 @@
 package handler
 
 import (
-	"encoding/json"
+	"context"
+	"log"
 	"net/http"
 	"sort"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/labstack/echo/v4"
+
+	authmiddleware "github.com/traP-jp/1m26_1/backend/internal/middleware"
+	"github.com/traP-jp/1m26_1/backend/internal/openapi"
 	"github.com/traP-jp/1m26_1/backend/internal/service"
 )
 
 type TimelineHandler struct {
-	lastUpdate      time.Time
-	bottomMessage   time.Time
 	timelineService *service.TimelineService
+	traq            *TraQClient
 }
 
-func NewTimelineHandler(timelineService *service.TimelineService) *TimelineHandler {
+func NewTimelineHandler(timelineService *service.TimelineService, traq *TraQClient) *TimelineHandler {
 	return &TimelineHandler{
-		lastUpdate:      time.Now(),
-		bottomMessage:   time.Now(),
 		timelineService: timelineService,
+		traq:            traq,
 	}
 }
 
@@ -34,19 +36,6 @@ type TimelineReceived struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-type Stamp struct {
-	// Count 自然数
-	Count Count `json:"count"`
-
-	// ID UUID
-	ID uuid.UUID `json:"id"`
-}
-
-type Stamps struct {
-	OthersCount int     `json:"othersCount,omitempty"`
-	Superior    []Stamp `json:"superior"`
-}
-
 type TimelineDetailed struct {
 	MessageID  uuid.UUID `json:"id"`
 	UserID     uuid.UUID `json:"userId"`
@@ -55,66 +44,40 @@ type TimelineDetailed struct {
 	CreatedAt  time.Time `json:"createdAt"`
 	UpdatedAt  time.Time `json:"updatedAt"`
 	StampCount Count     `json:"popularity"`
-	Stamps     Stamps    `json:"stamps"`
+	Stamps     []Stamp   `json:"stamps"`
 }
 
 type MessagesResponse struct {
 	Content []TimelineReceived `json:"hits"`
 }
 
-type TimelineResponse struct {
-	Messages []uuid.UUID `json:"messages"`
-}
-
 type AuthorResponse struct {
 	UserID uuid.UUID `json:"userId"`
 }
 
-type StampsReceived struct {
-	StampID uuid.UUID `json:"stampId"`
-	UserID  uuid.UUID `json:"userId"`
-	Count   Count     `json:"count"`
+type Stamp struct {
+	StampID   uuid.UUID `json:"stampId"`
+	UserID    uuid.UUID `json:"userId"`
+	Count     Count     `json:"count"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-func GetActivity(sbp, all, query string) (*[]TimelineDetailed, *time.Time, *time.Time, error) {
-	req, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages?bot=false&limit=100&"+query, nil)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	result, err3 := http.DefaultClient.Do(req)
-	if err3 != nil {
-		return nil, nil, nil, err3
-	}
-	defer result.Body.Close()
+func (t *TraQClient) GetActivity(ctx context.Context, token, sbp, query string) (*[]TimelineDetailed, error) {
 	var res MessagesResponse
-	json.NewDecoder(result.Body).Decode(&res)
+	if err := t.get(ctx, token, "/messages?bot=false&limit=100&"+query, &res); err != nil {
+		return nil, err
+	}
 	res4 := res.Content
 	res_d := make([]TimelineDetailed, len(res4))
 	for i, v := range res4 {
-		req2, err2 := http.NewRequest("GET", "https://q.trap.jp/api/v3/messages/"+v.MessageID.String()+"/stamps", nil)
-		if err2 != nil {
-			return nil, nil, nil, err2
+		var res2 []Stamp
+		if err := t.get(ctx, token, "/messages/"+v.MessageID.String()+"/stamps", &res2); err != nil {
+			return nil, err
 		}
-		tmp, err4 := http.DefaultClient.Do(req2)
-		if err4 != nil {
-			return nil, nil, nil, err4
-		}
-		defer tmp.Body.Close()
-		var res2 []StampsReceived
-		json.NewDecoder(result.Body).Decode(&res2)
 		sc := 0
-		sc2 := 0
-		res3 := make([]Stamp, min(5, len(res2)))
-		for i, v := range res2 {
+		for _, v := range res2 {
 			sc += v.Count
-			if i < 5 {
-				res3[i] = Stamp{
-					ID:    v.StampID,
-					Count: v.Count,
-				}
-			} else {
-				sc2 += 1
-			}
 		}
 		res_d[i] = TimelineDetailed{
 			MessageID:  v.MessageID,
@@ -124,10 +87,7 @@ func GetActivity(sbp, all, query string) (*[]TimelineDetailed, *time.Time, *time
 			CreatedAt:  v.CreatedAt,
 			UpdatedAt:  v.UpdatedAt,
 			StampCount: sc,
-			Stamps: Stamps{
-				OthersCount: sc2,
-				Superior:    res3,
-			},
+			Stamps:     res2,
 		}
 	}
 
@@ -136,67 +96,46 @@ func GetActivity(sbp, all, query string) (*[]TimelineDetailed, *time.Time, *time
 			return res_d[i].StampCount > res_d[j].StampCount
 		})
 	}
-	u := time.Now()
-	return &res_d, &u, &res_d[len(res_d)-1].CreatedAt, nil
+	return &res_d, nil
 }
 
-func GetStamps(id string) (*Stamps, error) {
-	req, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/message/"+id+"/stamps", nil)
-	if err != nil {
+func (t *TraQClient) GetStamps(ctx context.Context, token, id string) (*[]Stamp, error) {
+	var res2 []Stamp
+	if err := t.get(ctx, token, "/messages/"+id+"/stamps", &res2); err != nil {
 		return nil, err
 	}
-	res, err2 := http.DefaultClient.Do(req)
-	if err2 != nil {
-		return nil, err2
-	}
-	defer res.Body.Close()
-	var res2 []StampsReceived
-	json.NewDecoder(res.Body).Decode(&res2)
-	sort.Slice(res2, func(i, j int) bool {
-		return res2[i].Count > res2[j].Count
-	})
-	sup := make([]Stamp, min(len(res2), 5))
-	ot := 0
-	for i, v := range res2 {
-		if i < 5 {
-			sup[i] = Stamp{
-				ID:    v.StampID,
-				Count: v.Count,
-			}
-		} else {
-			ot += v.Count
-		}
-	}
-	return &Stamps{
-		Superior:    sup,
-		OthersCount: ot,
-	}, nil
+	return &res2, nil
 }
 
-func GetAuthor(id string) (*AuthorResponse, error) {
-	req, err := http.NewRequest("GET", "https://q.trap.jp/api/v3/message/"+id, nil)
-	if err != nil {
-		return nil, err
-	}
-	res, err2 := http.DefaultClient.Do(req)
-	if err2 != nil {
-		return nil, err2
-	}
-	defer res.Body.Close()
+func (t *TraQClient) GetAuthor(ctx context.Context, token, id string) (*AuthorResponse, error) {
 	var res2 AuthorResponse
-	json.NewDecoder(res.Body).Decode(&res2)
+	if err := t.get(ctx, token, "/messages/"+id, &res2); err != nil {
+		return nil, err
+	}
 	return &res2, nil
 }
 
 func (h *TimelineHandler) GetTimeline(c echo.Context) error {
 	params := c.QueryParams()
 	if !(params.Has("sortByPopularity")) {
-		return c.JSON(http.StatusBadRequest, nil)
+		return c.JSON(http.StatusBadRequest, openapi.Error{Message: "sortByPopularity is required"})
 	}
-	res, _, bm, err := GetActivity(params.Get("sortByPopularity"), "true", "before="+h.bottomMessage.String())
-	h.bottomMessage = *bm
+	before := time.Now().UTC().Format(time.RFC3339)
+	if params.Has("before") {
+		before = params.Get("before")
+	}
+	user, ok := authmiddleware.GetAuthenticatedUser(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, openapi.Error{Message: "Unauthorized"})
+	}
+	res, err := h.traq.GetActivity(
+		c.Request().Context(), user.Session,
+		params.Get("sortByPopularity"),
+		"before="+before,
+	)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, nil)
+		log.Printf("get timeline: %v", err)
+		return c.JSON(http.StatusBadGateway, openapi.Error{Message: "Failed to fetch the timeline from traQ"})
 	}
 	return c.JSON(http.StatusOK, *res)
 }
@@ -204,12 +143,23 @@ func (h *TimelineHandler) GetTimeline(c echo.Context) error {
 func (h *TimelineHandler) GetIn(c echo.Context) error {
 	params := c.QueryParams()
 	if !(params.Has("sortByPopularity")) {
-		return c.JSON(http.StatusBadRequest, nil)
+		return c.JSON(http.StatusBadRequest, openapi.Error{Message: "sortByPopularity is required"})
 	}
-	res, lu, _, err := GetActivity(params.Get("sortByPopularity"), "true", "after="+h.lastUpdate.String())
-	h.lastUpdate = *lu
+	if !(params.Has("after")) {
+		return c.JSON(http.StatusBadRequest, openapi.Error{Message: "after is required"})
+	}
+	user, ok := authmiddleware.GetAuthenticatedUser(c)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, openapi.Error{Message: "Unauthorized"})
+	}
+	res, err := h.traq.GetActivity(
+		c.Request().Context(), user.Session,
+		params.Get("sortByPopularity"),
+		"after="+params.Get("after"),
+	)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, nil)
+		log.Printf("get new messages: %v", err)
+		return c.JSON(http.StatusBadGateway, openapi.Error{Message: "Failed to fetch new messages from traQ"})
 	}
 	return c.JSON(http.StatusOK, *res)
 }

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { oneMonthonApi } from '../lib/api/endpoints'
 import { traqApi } from '../lib/api/traq'
+import { API_CONCURRENCY, mapWithConcurrency } from '../lib/concurrency'
 import type { traQcomponents } from '../types/traq'
 
 export const useTimelineStore = defineStore('timeline', () => {
@@ -13,6 +14,8 @@ export const useTimelineStore = defineStore('timeline', () => {
     const isLoading = ref(false)
     const error = ref<string | null>(null)
     const sortByPopularity = ref(false)
+    const addAnimationStampId = ref<string | null>(null)
+    const removeAnimationStampId = ref<string | null>(null)
 
     // ============================================
     // Getters（必要に応じて追加）
@@ -43,9 +46,10 @@ export const useTimelineStore = defineStore('timeline', () => {
                 return
             }
 
-            // 2. 各IDのメッセージ詳細を並列取得
-            const messagePromises = ids.map((id) => traqApi.getMessage(id))
-            const results = await Promise.allSettled(messagePromises)
+            // 2. 各IDのメッセージ詳細を取得（同時接続数を絞ってレートリミットを回避）
+            const results = await mapWithConcurrency(ids, API_CONCURRENCY, (id) =>
+                traqApi.getMessage(id),
+            )
 
             // 3. 成功したものだけを収集
             const fetchedMessages: TraqMessage[] = []
@@ -123,12 +127,33 @@ export const useTimelineStore = defineStore('timeline', () => {
         error.value = null
     }
 
+    // スタンプを追加・削除したときのアニメーションを起動
+    const triggerAddStampAnimation = (stampId: string) => {
+        addAnimationStampId.value = stampId
+        window.setTimeout(() => {
+            if (addAnimationStampId.value === stampId) {
+                addAnimationStampId.value = null
+            }
+        }, 200)
+    }
+
+    const triggerRemoveStampAnimation = (stampId: string) => {
+        removeAnimationStampId.value = stampId
+        window.setTimeout(() => {
+            if (removeAnimationStampId.value === stampId) {
+                removeAnimationStampId.value = null
+            }
+        }, 200)
+    }
+
     return {
         // State
         messages,
         isLoading,
         error,
         sortByPopularity,
+        addAnimationStampId,
+        removeAnimationStampId,
 
         // Getters
         messageCount,
@@ -141,5 +166,7 @@ export const useTimelineStore = defineStore('timeline', () => {
         removeMessage,
         updateMessageStamps,
         reset,
+        triggerAddStampAnimation,
+        triggerRemoveStampAnimation,
     }
 })

@@ -80,16 +80,27 @@ pnpm run build
 
 環境変数はすべて `VITE_` プレフィックスを使います。`.env.example` を参考に、必要に応じて `.env.local` を作成してください。
 
-| 変数               | デフォルト              | 用途                                                     |
-| ------------------ | ----------------------- | -------------------------------------------------------- |
-| `VITE_API_BASE`    | `http://localhost:8080` | 1m26_1 バックエンドのベース URL                          |
-| `VITE_API_MOCKING` | `true`                  | `true` のとき MSW を有効化。バックエンド接続時は `false` |
+| 変数                  | デフォルト              | 用途                                                      |
+| --------------------- | ----------------------- | --------------------------------------------------------- |
+| `VITE_API_BASE`       | `http://localhost:8080` | 1m26_1 バックエンドのベース URL                           |
+| `VITE_API_MOCKING`    | `true`                  | `true` のとき MSW を有効化。バックエンド接続時は `false`  |
+| `VITE_TRAQ_CLIENT_ID` | （なし）                | traQ の OAuth クライアント ID。未設定だとログイン時に例外 |
 
 一時的に指定する例です。
 
 ```bash
 VITE_API_BASE=http://localhost:8080 VITE_API_MOCKING=false pnpm --dir frontend dev
 ```
+
+## traQ ログインをローカルで動かす
+
+1. `frontend/.env` に `VITE_TRAQ_CLIENT_ID` を設定し、`VITE_API_MOCKING=false` にします。
+1. `backend/.env`（`backend/.env.example` を参照）に `TRAQ_CLIENT_ID` を設定します。
+   confidential クライアントの場合は `TRAQ_CLIENT_SECRET` も設定してください。
+1. `mise run backend` と `mise run frontend` を起動して <http://localhost:5173> を開きます。
+
+認可コードの交換はバックエンドの `POST /api/oauth/token` が行います。PKCE（S256）を使うため、
+フロントエンドが `code_verifier` を生成してバックエンドへ渡します。
 
 ## フォルダ構成
 

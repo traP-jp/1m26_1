@@ -279,16 +279,19 @@ type MessageEditedEventType string
 
 // OAuthResponse defines model for OAuthResponse.
 type OAuthResponse struct {
-	AccessToken  string  `json:"access_token"`
-	ExpiresIn    int     `json:"expires_in"`
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int    `json:"expires_in"`
+
+	// IDToken JWT 形式の ID Token。openid スコープ要求時のみ返る。
+	IDToken      *string `json:"id_token,omitempty"`
 	RefreshToken *string `json:"refresh_token,omitempty"`
+
+	// Scope 取得時からスコープが狭められた場合にのみ返る。
+	Scope *string `json:"scope,omitempty"`
 
 	// TokenType Example: Bearer
 	TokenType string `json:"token_type"`
 }
-
-// SortByPopularity 人気 (True) / 最新 (False)
-type SortByPopularity = bool
 
 // Stamp defines model for Stamp.
 type Stamp struct {
@@ -460,18 +463,22 @@ type Unauthorized = Error
 
 // PostAPIOauthTokenJSONBody defines parameters for PostAPIOauthToken.
 type PostAPIOauthTokenJSONBody struct {
-	Code *string `json:"code,omitempty"`
+	// Code traQ から受け取った認可コード。
+	Code string `json:"code"`
+
+	// CodeVerifier PKCE のベリファイア。認可時に code_challenge を送った場合は必須。
+	CodeVerifier *string `json:"code_verifier,omitempty"`
 }
 
 // GetTimelineParams defines parameters for GetTimeline.
 type GetTimelineParams struct {
-	SortByPopularity bool `form:"SortByPopularity" json:"SortByPopularity"`
+	SortByPopularity bool `form:"sortByPopularity" json:"sortByPopularity"`
 	All              bool `form:"all" json:"all"`
 }
 
 // GetInParams defines parameters for GetIn.
 type GetInParams struct {
-	SortByPopularity bool `form:"SortByPopularity" json:"SortByPopularity"`
+	SortByPopularity bool `form:"sortByPopularity" json:"sortByPopularity"`
 	All              bool `form:"all" json:"all"`
 }
 

@@ -19,15 +19,19 @@ apiClient.interceptors.request.use((config) => {
     return config
 })
 
-// レスポンスインターセプタ：401 エラー時にログアウト処理（任意）
+// レスポンスインターセプタ：401 エラー時はログアウトのみ行う。
+//
+// 以前はここで window.location.href = '/' により全ページリロードしていたが、
+// ルーターガードが未認証を検知して traQ へ再リダイレクトし、そのログイン後の
+// リクエストがまた 401 になる（スコープ不足やクライアント設定ミスなど）と、
+// ログアウト → リロード → 再ログイン → 401 という無限ループになり、
+// traQ 側のレート制限（429）を引き起こしていた。
+// リダイレクトは行わず、呼び出し元の catch と画面表示に任せる。
 apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
         if (error.response?.status === 401) {
-            const authStore = useAuthStore()
-            authStore.logout()
-            // ログインページへリダイレクトなど
-            window.location.href = '/'
+            useAuthStore().logout()
         }
         return Promise.reject(error)
     },

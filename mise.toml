@@ -22,7 +22,7 @@ run = "pnpm run dev"
 [tasks."frontend:mock"]
 description = "モック API に接続してフロントエンドを起動"
 dir = "frontend"
-run = "VITE_API_MOCK=true pnpm run dev"
+run = "VITE_API_MOCKING=true pnpm run dev"
 
 [tasks.backend]
 description = "バックエンドを起動"

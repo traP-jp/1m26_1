@@ -145,6 +145,8 @@ watchEffect(() => {
 const hoveredStampId = ref<string | null>(null)
 const tooltipPosition = ref({ x: 0, y: 0 })
 const isHoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+const addAnimationStampId = computed(() => timelineStore.addAnimationStampId)
+const removeAnimationStampId = computed(() => timelineStore.removeAnimationStampId)
 
 const hoveredGroup = computed(() => {
     if (!hoveredStampId.value) return null
@@ -190,8 +192,6 @@ const toggleStamp = async (stampId: string) => {
     const myEntry = props.stamps.find((s) => s.stampId === stampId && s.userId === authStore.userId)
     const pinned = !!myEntry
 
-    let updatedStamps = [...props.stamps]
-
     if (pinned) {
         updatedStamps = updatedStamps
             .map((s) => {
@@ -209,19 +209,15 @@ const toggleStamp = async (stampId: string) => {
             userId: authStore.userId!,
             createdAt: now,
             updatedAt: now,
-        })
-    }
+        },
+    ]
 
     timelineStore.updateMessageStamps(props.messageId, updatedStamps)
 
     try {
-        if (pinned) {
-            await traqApi.unpinStamp(props.messageId, stampId)
-        } else {
-            await traqApi.pinStamp(props.messageId, stampId)
-        }
+        await traqApi.pinStamp(props.messageId, stampId)
     } catch (error) {
-        console.error('スタンプ操作に失敗:', error)
+        console.error('スタンプ追加に失敗:', error)
         timelineStore.updateMessageStamps(props.messageId, props.stamps)
     }
 }
@@ -434,6 +430,14 @@ const openPalette = (event: MouseEvent) => {
     background: #fbe0bb;
 }
 
+.stamp-item--added {
+    animation: fadeInAndMoveUp 0.2s ease-out both;
+}
+
+.stamp-item--removed {
+    animation: fadeOutAndMoveDown 0.2s ease-in both;
+}
+
 .stamp-emoji {
     font-size: 18px;
     line-height: 1;
@@ -500,5 +504,27 @@ const openPalette = (event: MouseEvent) => {
     font-weight: 300;
     line-height: 1;
     transform-origin: center;
+}
+
+@keyframes fadeInAndMoveUp {
+    0% {
+        transform: translateY(16px);
+        opacity: 0.5;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOutAndMoveDown {
+    0% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(16px);
+        opacity: 0.5;
+    }
 }
 </style>

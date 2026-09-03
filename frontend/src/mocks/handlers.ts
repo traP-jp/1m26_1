@@ -108908,17 +108908,42 @@ const MOCK_CHANNEL_PATHS: Record<string, string> = {
     '019f4f20-ff3c-773e-90cf-7641a4c0e60b': 'gps/onair',
 }
 
-const MOCK_PUBLIC_CHANNELS: PublicChannel[] = Object.entries(MOCK_CHANNEL_PATHS).map(
-    ([id, path]) => ({
-        id,
-        name: path.split('/').at(-1) ?? path,
-        topic: '',
-        parentId: null,
-        archived: false,
-        force: false,
-        children: [],
-    }),
-)
+// 実際の traQ と同様に、親子関係のあるチャンネルツリーを組み立てる。
+// （フロントは GET /channels のツリーから parentId を辿ってフルパスを構築するため、
+//   parentId が正しくないとモックだけパス表示が壊れる。）
+const MOCK_PUBLIC_CHANNELS: PublicChannel[] = (() => {
+    const pathToId = new Map<string, string>(
+        Object.entries(MOCK_CHANNEL_PATHS).map(([id, path]) => [path, id]),
+    )
+    const byId = new Map<string, PublicChannel>()
+
+    const ensure = (fullPath: string): string => {
+        const id = pathToId.get(fullPath) ?? `mock-channel-${fullPath.replace(/\//g, '-')}`
+        pathToId.set(fullPath, id)
+
+        const slashIndex = fullPath.lastIndexOf('/')
+        const name = slashIndex === -1 ? fullPath : fullPath.slice(slashIndex + 1)
+        const parentId = slashIndex === -1 ? null : ensure(fullPath.slice(0, slashIndex))
+
+        if (!byId.has(id)) {
+            byId.set(id, {
+                id,
+                name,
+                topic: '',
+                parentId,
+                archived: false,
+                force: false,
+                children: [],
+            })
+            const parent = parentId ? byId.get(parentId) : undefined
+            if (parent && !parent.children.includes(id)) parent.children.push(id)
+        }
+        return id
+    }
+
+    for (const path of Object.values(MOCK_CHANNEL_PATHS)) ensure(path)
+    return [...byId.values()]
+})()
 
 const MOCK_DM_CHANNELS: DMChannel[] = [
     { id: 'dm-001', userId: MOCK_USERS[1]?.id || '' },
@@ -109321,18 +109346,6 @@ const traqHandlers = [
             dm: MOCK_DM_CHANNELS,
         }
         return HttpResponse.json(response)
-    }),
-
-    http.get('https://q.trap.jp/api/v3/channels/:channelId/path', async ({ params }) => {
-        await simulateNetworkDelay(120)
-        const channelId = params.channelId as string
-        const path = MOCK_CHANNEL_PATHS[channelId]
-        if (!path) {
-            return new HttpResponse(JSON.stringify({ message: 'チャンネルが見つかりません' }), {
-                status: 404,
-            })
-        }
-        return HttpResponse.json({ path })
     }),
 
     http.get(
