@@ -83,7 +83,7 @@ export async function getTimeline(
     before?: string,
 ): Promise<ApiTimelineMessage[]> {
     const url = createApiUrl(endpoints.timeline)
-    url.searchParams.set('SortByPopularity', String(sortByPopularity))
+    url.searchParams.set('sortByPopularity', String(sortByPopularity))
     if (before) {
         url.searchParams.set('before', before)
     }
@@ -102,7 +102,7 @@ export async function getTimelineNew(
     after?: string,
 ): Promise<ApiTimelineMessage[] | null> {
     const url = createApiUrl(endpoints.timelineNew)
-    url.searchParams.set('SortByPopularity', String(sortByPopularity))
+    url.searchParams.set('sortByPopularity', String(sortByPopularity))
     if (after) {
         url.searchParams.set('after', after)
     }
