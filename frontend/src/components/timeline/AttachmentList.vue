@@ -187,3 +187,134 @@ const downloadOther = async (file: FileInfo) => {
         </li>
     </ul>
 </template>
+
+<style scoped>
+.attachment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.attachment-item {
+    min-width: 0;
+}
+
+/* 画像は本文幅に収める。縦長でも列を占有しないよう高さにも上限を置く */
+.attachment-image {
+    display: block;
+    max-width: 100%;
+    max-height: 320px;
+    border: 1px solid var(--surface-border-secondary);
+    border-radius: 4px;
+    object-fit: contain;
+}
+
+.attachment-media {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--surface-border-secondary);
+    border-radius: 4px;
+    background: var(--post-background);
+}
+
+.attachment-media-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.attachment-video {
+    display: block;
+    width: 100%;
+    max-height: 320px;
+    border-radius: 4px;
+    background: #000;
+}
+
+.attachment-audio-player {
+    width: 100%;
+}
+
+/* プレビューしないファイルは、クリックでダウンロードするボタンとして見せる */
+.attachment-file {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--surface-border-secondary);
+    border-radius: 4px;
+    background: var(--post-background);
+    color: var(--text-primary);
+    font-size: var(--text-size-s);
+    text-align: left;
+    cursor: pointer;
+}
+
+.attachment-file:hover {
+    background: var(--surface-secondary);
+}
+
+.attachment-file:focus-visible,
+.attachment-download:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* svg に width/height が無いと置換要素の既定サイズ 300x150 で描画されてしまう。
+   箱と svg の両方でサイズを決めきる。viewBox が正方形でないアイコン（24x30）は
+   preserveAspectRatio の既定でレターボックスされるだけなので歪まない */
+.attachment-icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: var(--text-secondary);
+}
+
+.attachment-icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.attachment-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: var(--text-size-s);
+    color: var(--text-primary);
+}
+
+.attachment-download {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    color: var(--text-secondary);
+}
+
+.attachment-download svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+}
+
+a.attachment-download:hover {
+    background: var(--surface-secondary);
+    color: var(--text-primary);
+}
+</style>
