@@ -11,6 +11,8 @@ type Entry = {
 const props = defineProps<{
     stampId: string
     entries: Entry[]
+    /** 押された総数。誰が押したかの詳細がまだ無いときのフォールバック表示に使う。 */
+    totalCount: number
     position: { x: number; y: number }
 }>()
 
@@ -34,58 +36,70 @@ const sortedEntries = computed(() => {
 </script>
 
 <template>
-    <div
-        class="stamp-tooltip"
-        :style="{
-            left: position.x + 'px',
-            top: position.y + 'px',
-        }"
-    >
-        <div class="tooltip-content">
-            <!-- スタンプ画像 -->
-            <div class="tooltip-stamp">
-                <img
-                    v-if="getStampImageUrl(stampId)"
-                    :src="getStampImageUrl(stampId)"
-                    alt="stamp"
-                    class="tooltip-stamp-image"
-                    referrerpolicy="no-referrer"
-                    loading="lazy"
-                    @error="
-                        (e) => {
-                            ;(e.target as HTMLImageElement).style.display = 'none'
-                        }
-                    "
-                />
-                <span v-else class="tooltip-stamp-name">
-                    :{{ getStamp(stampId)?.name || '?' }}:
-                </span>
-            </div>
+    <!-- 仮想スクローラは各アイテムに transform を掛ける。transform は position: fixed の
+         包含ブロックとスタッキングコンテキストの両方を作るため、この中に置いたままだと
+         (1) clientX/clientY 基準の座標がアイテム原点からの相対になってずれ、
+         (2) z-index: 9999 がアイテム内に閉じ込められ後続のメッセージが上に描かれる。
+         body へ teleport して両方を回避する -->
+    <Teleport to="body">
+        <div
+            class="stamp-tooltip"
+            :style="{
+                left: position.x + 'px',
+                top: position.y + 'px',
+            }"
+        >
+            <div class="tooltip-content">
+                <!-- スタンプ画像 -->
+                <div class="tooltip-stamp">
+                    <img
+                        v-if="getStampImageUrl(stampId)"
+                        :src="getStampImageUrl(stampId)"
+                        alt="stamp"
+                        class="tooltip-stamp-image"
+                        referrerpolicy="no-referrer"
+                        loading="lazy"
+                        @error="
+                            (e) => {
+                                ;(e.target as HTMLImageElement).style.display = 'none'
+                            }
+                        "
+                    />
+                    <span v-else class="tooltip-stamp-name">
+                        :{{ getStamp(stampId)?.name || '?' }}:
+                    </span>
+                </div>
 
-            <!-- スタンプ名 -->
-            <div class="tooltip-name">
-                {{ getStampDisplayName(stampId) }}
-            </div>
+                <!-- スタンプ名 -->
+                <div class="tooltip-name">
+                    {{ getStampDisplayName(stampId) }}
+                </div>
 
-            <!-- ユーザーアイコン（一意なキーを使用） -->
-            <div class="tooltip-users">
-                <img
-                    v-for="entry in sortedEntries"
-                    :key="entry.uid"
-                    :src="getIconUrl(entry.userId)"
-                    alt="user"
-                    class="tooltip-avatar"
-                    referrerpolicy="no-referrer"
-                    loading="lazy"
-                    @error="
-                        (e) => {
-                            ;(e.target as HTMLImageElement).style.display = 'none'
-                        }
-                    "
-                />
+                <!-- 誰が押したかがまだ取れていない間は件数だけ見せる -->
+                <div v-if="sortedEntries.length === 0" class="tooltip-count">
+                    {{ totalCount }} 件
+                </div>
+
+                <!-- ユーザーアイコン（一意なキーを使用） -->
+                <div v-else class="tooltip-users">
+                    <img
+                        v-for="entry in sortedEntries"
+                        :key="entry.uid"
+                        :src="getIconUrl(entry.userId)"
+                        alt="user"
+                        class="tooltip-avatar"
+                        referrerpolicy="no-referrer"
+                        loading="lazy"
+                        @error="
+                            (e) => {
+                                ;(e.target as HTMLImageElement).style.display = 'none'
+                            }
+                        "
+                    />
+                </div>
             </div>
         </div>
-    </div>
+    </Teleport>
 </template>
 
 <style scoped>
@@ -107,7 +121,6 @@ const sortedEntries = computed(() => {
     transform: translate(0, 0);
     font-size: 13px;
     line-height: 1.4;
-    backdrop-filter: blur(2px);
 }
 
 .tooltip-stamp {
@@ -149,6 +162,12 @@ const sortedEntries = computed(() => {
     justify-content: center;
     gap: 4px;
     flex-wrap: wrap;
+}
+
+.tooltip-count {
+    text-align: center;
+    font-size: 12px;
+    color: #6e6e73;
 }
 
 .tooltip-avatar {

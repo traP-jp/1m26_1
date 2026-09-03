@@ -1,72 +1,59 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
 import { useStampStore } from '../../stores/stampStore'
 import { useTimelineStore } from '../../stores/timelineStore'
+import { useMessageStampStore } from '../../stores/messageStampStore'
 import { traqApi } from '../../lib/api/traq'
+import {
+    addStampToDetail,
+    groupsFromAggregate,
+    groupsFromDetail,
+    hasMyStamp,
+    hasOtherUsersStamp,
+    removeStampFromDetail,
+} from '../../lib/stamps'
 import StampTooltip from './StampTooltip.vue'
-import type { traQcomponents } from '../../types/traq'
+import type { components } from '../../gen/api-types'
 
-type MessageStamp = traQcomponents['schemas']['MessageStamp']
+type Stamps = components['schemas']['Stamps']
 
 const props = defineProps<{
     messageId: string
-    stamps: MessageStamp[]
-    othersCount?: number
+    stamps: Stamps
 }>()
 
 const authStore = useAuthStore()
 const stampStore = useStampStore()
 const timelineStore = useTimelineStore()
+const messageStampStore = useMessageStampStore()
 
 // ============================================
 // 1. スタンプをグループ化（表示用）
 // ============================================
-const groupedStamps = computed(() => {
-    const groups = new Map<
-        string,
-        {
-            stampId: string
-            totalCount: number
-            isPinned: boolean
-            entries: { userId: string; createdAt: string }[]
-            createdAt: string
-        }
-    >()
+// バックエンドの集計値は「誰が押したか」を持たないので、
+// ユーザー単位の詳細を traQ から遅延取得し、届いたらそちらに切り替える。
+// onMounted ではなく watch にしているのは、仮想化でコンポーネントが
+// 使い回されると onMounted がインスタンスにつき 1 回しか発火しないため。
+watch(
+    () => props.messageId,
+    (messageId) => {
+        void messageStampStore.ensureStamps(messageId)
+    },
+    { immediate: true },
+)
 
-    for (const s of props.stamps) {
-        const group = groups.get(s.stampId)
-        if (group) {
-            group.totalCount += s.count
-            // ★ count 回分 entries に追加
-            for (let i = 0; i < s.count; i++) {
-                group.entries.push({ userId: s.userId, createdAt: s.createdAt })
-            }
-            if (s.createdAt < group.createdAt) {
-                group.createdAt = s.createdAt
-            }
-        } else {
-            groups.set(s.stampId, {
-                stampId: s.stampId,
-                totalCount: s.count,
-                isPinned: s.userId === authStore.userId,
-                entries: Array.from({ length: s.count }, () => ({
-                    userId: s.userId,
-                    createdAt: s.createdAt,
-                })),
-                createdAt: s.createdAt,
-            })
-        }
-    }
+const detail = computed(() => messageStampStore.getStamps(props.messageId))
+const isHydrated = computed(() => detail.value !== undefined)
 
-    for (const group of groups.values()) {
-        group.isPinned = group.entries.some((e) => e.userId === authStore.userId)
-    }
+const groupedStamps = computed(() =>
+    detail.value
+        ? groupsFromDetail(detail.value, authStore.userId)
+        : groupsFromAggregate(props.stamps),
+)
 
-    return Array.from(groups.values()).sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    )
-})
+// 詳細が届けば全スタンプを描けるので、「+N」は集計値だけの間しか出さない
+const hiddenCount = computed(() => (isHydrated.value ? 0 : (props.stamps.othersCount ?? 0)))
 
 // ============================================
 // 2. ホバー状態管理（stampId のみ保持）
@@ -99,66 +86,51 @@ const onMouseLeave = () => {
 // 3. スタンプ操作（押す / 解除）
 // ============================================
 const toggleStamp = async (stampId: string) => {
-    const myEntry = props.stamps.find((s) => s.stampId === stampId && s.userId === authStore.userId)
-    const pinned = !!myEntry
+    const userId = authStore.userId
+    if (!userId) return
 
-    if (pinned) {
-        const remainingAfterSelfRemoval = props.stamps.filter(
-            (s) => !(s.stampId === stampId && s.userId === authStore.userId),
-        )
-        const hasOtherUsers = remainingAfterSelfRemoval.some((s) => s.stampId === stampId)
+    // 押す / 外すの判定にはユーザー単位の詳細が要る。
+    // 通常は表示時のハイドレートで既に揃っているが、間に合っていなければ待つ。
+    await messageStampStore.ensureStamps(props.messageId)
+    const before = messageStampStore.getStamps(props.messageId)
+    if (!before) return
 
+    // 楽観的更新。commitDetail が詳細と集計値の両方を進めるので、
+    // 失敗したら更新前の詳細をそのまま渡し直せば戻る
+    const commit = (next: typeof before) => messageStampStore.commitDetail(props.messageId, next)
+    const rollback = () => commit(before)
+
+    if (hasMyStamp(before, stampId, userId)) {
         const performRemove = async () => {
-            const updatedStamps = props.stamps
-                .map((s) => {
-                    if (s.stampId === stampId && s.userId === authStore.userId) {
-                        return { ...s, count: 0 }
-                    }
-                    return s
-                })
-                .filter((s) => s.count > 0)
-
-            timelineStore.updateMessageStamps(props.messageId, updatedStamps)
-
+            commit(removeStampFromDetail(before, stampId, userId))
             try {
                 await traqApi.unpinStamp(props.messageId, stampId)
             } catch (error) {
                 console.error('スタンプ解除に失敗:', error)
-                timelineStore.updateMessageStamps(props.messageId, props.stamps)
+                rollback()
             }
         }
 
-        if (!hasOtherUsers) {
+        // 自分しか押していないならスタンプ自体が消えるので、消えるアニメーションを先に見せる
+        if (hasOtherUsersStamp(before, stampId, userId)) {
+            void performRemove()
+        } else {
             timelineStore.triggerRemoveStampAnimation(stampId)
             window.setTimeout(() => {
                 void performRemove()
             }, 200)
-        } else {
-            void performRemove()
         }
 
         return
     }
 
-    const now = new Date().toISOString()
-    const updatedStamps = [
-        ...props.stamps,
-        {
-            stampId: stampId,
-            count: 1,
-            userId: authStore.userId!,
-            createdAt: now,
-            updatedAt: now,
-        },
-    ]
-
-    timelineStore.updateMessageStamps(props.messageId, updatedStamps)
+    commit(addStampToDetail(before, stampId, userId))
 
     try {
         await traqApi.pinStamp(props.messageId, stampId)
     } catch (error) {
         console.error('スタンプ追加に失敗:', error)
-        timelineStore.updateMessageStamps(props.messageId, props.stamps)
+        rollback()
     }
 }
 
@@ -220,6 +192,15 @@ const openPalette = (event: MouseEvent) => {
             <span class="stamp-count">{{ group.totalCount }}</span>
         </span>
 
+        <!-- 集計値しか無い間は、上位 5 件に入らなかったぶんを件数だけで示す -->
+        <span
+            v-if="hiddenCount > 0"
+            class="stamp-others"
+            :aria-label="`ほかに ${hiddenCount} 件のスタンプ`"
+        >
+            +{{ hiddenCount }}
+        </span>
+
         <!-- ＋ボタン（スタンプパレットを開く） -->
         <button
             class="stamp-add-button"
@@ -248,6 +229,7 @@ const openPalette = (event: MouseEvent) => {
             v-if="hoveredGroup"
             :stamp-id="hoveredGroup.stampId"
             :entries="hoveredGroup.entries"
+            :total-count="hoveredGroup.totalCount"
             :position="tooltipPosition"
         />
     </div>
@@ -316,6 +298,18 @@ const openPalette = (event: MouseEvent) => {
     color: var(--text-secondary);
     min-width: 16px;
     text-align: center;
+}
+
+.stamp-others {
+    display: flex;
+    align-items: center;
+    height: 24px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--surface-secondary);
+    font-size: var(--text-size-s);
+    color: var(--text-secondary);
+    user-select: none;
 }
 
 .stamp-add-button {

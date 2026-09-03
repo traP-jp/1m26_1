@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { traQcomponents } from '../../types/traq'
+import type { ApiTimelineMessage } from '../../lib/api/endpoints'
 import { useUserStore } from '../../stores/userStore'
 import { useChannelStore } from '../../stores/channelStore'
 import { formatDate } from '../../lib/dateFormatter'
 import { computed } from 'vue'
 
-const props = defineProps<{ message: traQcomponents['schemas']['Message'] }>()
+const props = defineProps<{ message: ApiTimelineMessage }>()
 
 const userStore = useUserStore()
 const channelStore = useChannelStore()

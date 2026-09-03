@@ -5,6 +5,7 @@ package openapi
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/oapi-codegen/runtime"
 )
@@ -279,9 +280,15 @@ type MessageEditedEventType string
 
 // OAuthResponse defines model for OAuthResponse.
 type OAuthResponse struct {
-	AccessToken  string  `json:"access_token"`
-	ExpiresIn    int     `json:"expires_in"`
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int    `json:"expires_in"`
+
+	// IDToken JWT 形式の ID Token。openid スコープ要求時のみ返る。
+	IDToken      *string `json:"id_token,omitempty"`
 	RefreshToken *string `json:"refresh_token,omitempty"`
+
+	// Scope 取得時からスコープが狭められた場合にのみ返る。
+	Scope *string `json:"scope,omitempty"`
 
 	// TokenType Example: Bearer
 	TokenType string `json:"token_type"`
@@ -353,9 +360,23 @@ type Stamps struct {
 	Superior    []Stamp `json:"superior"`
 }
 
-// TimelineMessage defines model for TimelineMessage.
+// TimelineMessage タイムラインに並ぶ投稿 1 件。traQ を都度引き直さずに描画できるよう、本文とスタンプの集計値まで含めて返す。
 type TimelineMessage struct {
-	Messages []UUID `json:"messages"`
+	// ChannelID UUID
+	ChannelID UUID      `json:"channelId"`
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"createdAt"`
+
+	// ID UUID
+	ID UUID `json:"id"`
+
+	// Popularity 自然数
+	Popularity Count     `json:"popularity"`
+	Stamps     Stamps    `json:"stamps"`
+	UpdatedAt  time.Time `json:"updatedAt"`
+
+	// UserID ユーザーの ID
+	UserID UserID `json:"userId"`
 }
 
 // UUID UUID
@@ -460,7 +481,11 @@ type Unauthorized = Error
 
 // PostAPIOauthTokenJSONBody defines parameters for PostAPIOauthToken.
 type PostAPIOauthTokenJSONBody struct {
-	Code *string `json:"code,omitempty"`
+	// Code traQ から受け取った認可コード。
+	Code string `json:"code"`
+
+	// CodeVerifier PKCE のベリファイア。認可時に code_challenge を送った場合は必須。
+	CodeVerifier *string `json:"code_verifier,omitempty"`
 }
 
 // GetTimelineParams defines parameters for GetTimeline.

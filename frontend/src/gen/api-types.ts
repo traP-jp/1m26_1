@@ -168,8 +168,18 @@ export interface components {
         Error: {
             message: string
         }
+        /** @description タイムラインに並ぶ投稿 1 件。traQ を都度引き直さずに描画できるよう、本文とスタンプの集計値まで含めて返す。 */
         TimelineMessage: {
-            messages: components['schemas']['UUID'][]
+            id: components['schemas']['UUID']
+            userId: components['schemas']['UserId']
+            channelId: components['schemas']['UUID']
+            content: string
+            /** Format: date-time */
+            createdAt: string
+            /** Format: date-time */
+            updatedAt: string
+            popularity: components['schemas']['Count']
+            stamps: components['schemas']['Stamps']
         }
         /** @enum {string} */
         WebSocketEventType:
@@ -399,7 +409,7 @@ export interface operations {
                     [name: string]: unknown
                 }
                 content: {
-                    'application/json': components['schemas']['TimelineMessage']
+                    'application/json': components['schemas']['TimelineMessage'][]
                 }
             }
             400: components['responses']['BadRequest']
@@ -425,7 +435,7 @@ export interface operations {
                     [name: string]: unknown
                 }
                 content: {
-                    'application/json': components['schemas']['TimelineMessage']
+                    'application/json': components['schemas']['TimelineMessage'][]
                 }
             }
             /** @description 変更なし。 */

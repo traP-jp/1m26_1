@@ -109031,6 +109031,37 @@ const MESSAGE_POOL: Message[] = Array.from({ length: 50 }, (_, index) =>
     generateMockMessage(index + 1),
 )
 
+/** メッセージのスタンプ総数（人気順の並べ替え用）。 */
+const totalStampCount = (message: Message): number =>
+    message.stamps.reduce((sum, s) => sum + s.count, 0)
+
+/**
+ * traQ の Message を、バックエンドの /api/timeline が返す形に畳む。
+ * stamps は (ユーザー, スタンプ) 単位の配列から、スタンプごとの集計値
+ * {superior: 上位5件, othersCount: 残りの合計} に変換する。
+ */
+const toTimelineMessage = (message: Message): ApiTimelineMessage => {
+    const totals = new Map<string, number>()
+    for (const s of message.stamps) {
+        totals.set(s.stampId, (totals.get(s.stampId) ?? 0) + s.count)
+    }
+    const sorted = Array.from(totals.entries()).sort(([, a], [, b]) => b - a)
+
+    return {
+        id: message.id,
+        userId: message.userId,
+        channelId: message.channelId,
+        content: message.content,
+        createdAt: message.createdAt,
+        updatedAt: message.updatedAt,
+        popularity: totalStampCount(message),
+        stamps: {
+            superior: sorted.slice(0, 5).map(([id, count]) => ({ id, count })),
+            othersCount: sorted.slice(5).reduce((sum, [, count]) => sum + count, 0),
+        },
+    }
+}
+
 // ★ 複数人が同じスタンプを押しているケースを追加（先頭のメッセージを修正）
 const now = new Date().toISOString()
 const targetMessage = MESSAGE_POOL[0] // 最初のメッセージ
@@ -109083,9 +109114,7 @@ if (targetMessage) {
             updatedAt: now,
         },
     ]
-    console.log(targetMessage)
     MESSAGE_POOL[0] = targetMessage
-    console.log(MESSAGE_POOL[0])
 }
 // 2番目のメッセージにも同様のケースを追加（別のスタンプで）
 const secondMessage = MESSAGE_POOL[1]!
@@ -109147,18 +109176,34 @@ for (const [index, content] of quoteFixtures) {
     quoteMessage.updatedAt = now
 }
 
+// 新着は MESSAGE_POOL のどれよりも必ず新しくしておく。
+// generateMockMessage の createdAt は index から決まるため（101 番は 1/11 になる）、
+// そのままだとプール最新（1/29 あたり）より古く、after= 付きの取得で 1 件も返らなくなる。
+const newestPoolCreatedAt = MESSAGE_POOL.reduce(
+    (max, m) => (m.createdAt > max ? m.createdAt : max),
+    MESSAGE_POOL[0]?.createdAt ?? new Date(0).toISOString(),
+)
+const afterNewestPool = (minutes: number) =>
+    new Date(new Date(newestPoolCreatedAt).getTime() + minutes * 60_000).toISOString()
+
 let pendingNewMessages: Message[] = [
     generateMockMessage(101, {
         channelId: 'f2bea4b7-8a2d-43ba-b84b-f53aea3d43c5',
         content: '✨ 新着メッセージその1！',
+        createdAt: afterNewestPool(1),
+        updatedAt: afterNewestPool(1),
     }),
     generateMockMessage(102, {
         channelId: 'f2bea4b7-8a2d-43ba-b84b-f53aea3d43c5',
         content: '📢 新着メッセージその2！',
+        createdAt: afterNewestPool(2),
+        updatedAt: afterNewestPool(2),
     }),
     generateMockMessage(103, {
         channelId: '019db58b-5bb0-743f-ab67-fd1bc2ab9a25',
         content: '🎉 1-Monthon進捗どうですか？',
+        createdAt: afterNewestPool(3),
+        updatedAt: afterNewestPool(3),
     }),
 ]
 
@@ -109246,45 +109291,49 @@ const oneMonthonHandlers = [
 
     http.get(apiUrl('/api/timeline'), async ({ request }) => {
         await simulateNetworkDelay(400)
-        const isPopular: ApiSortByPopularity =
-            new URL(request.url).searchParams.get('SortByPopularity') === 'true'
+        const params = new URL(request.url).searchParams
+        const isPopular: ApiSortByPopularity = params.get('SortByPopularity') === 'true'
+        // before 省略 = 最新から。指定時はそれより古い分。
+        const before = params.get('before')
 
-        let messageIds = MESSAGE_POOL.map((m) => m.id)
+        // どの 30 件を返すかは必ず時刻で決める（新しい順に並べてから切る）。
+        // 人気順の並べ替えは切り出した 1 ページの中だけで行う。
+        // こうしないとページの範囲が人気度に左右され、before によるページングが破綻する。
+        const candidates = before
+            ? MESSAGE_POOL.filter((m) => new Date(m.createdAt) < new Date(before))
+            : [...MESSAGE_POOL]
+
+        const page = candidates
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 30)
+
         if (isPopular) {
-            messageIds = [...messageIds].sort((a, b) => {
-                const aMsg = MESSAGE_POOL.find((m) => m.id === a)
-                const bMsg = MESSAGE_POOL.find((m) => m.id === b)
-                const aCount = aMsg?.stamps?.reduce((sum, s) => sum + s.count, 0) || 0
-                const bCount = bMsg?.stamps?.reduce((sum, s) => sum + s.count, 0) || 0
-                return bCount - aCount
-            })
-        } else {
-            messageIds = [...messageIds].sort((a, b) => {
-                const aMsg = MESSAGE_POOL.find((m) => m.id === a)
-                const bMsg = MESSAGE_POOL.find((m) => m.id === b)
-                return (
-                    new Date(bMsg?.createdAt || 0).getTime() -
-                    new Date(aMsg?.createdAt || 0).getTime()
-                )
-            })
+            page.sort((a, b) => totalStampCount(b) - totalStampCount(a))
         }
 
-        const limited = messageIds.slice(0, 30)
-        const response: ApiTimelineMessage = { messages: limited }
-        return HttpResponse.json(response)
+        return HttpResponse.json(page.map(toTimelineMessage))
     }),
 
-    http.get(apiUrl('/api/timeline/new'), async () => {
+    http.get(apiUrl('/api/timeline/new'), async ({ request }) => {
         await simulateNetworkDelay(200)
+        const after = new URL(request.url).searchParams.get('after')
+
+        // after が指定されていれば、それより後の新着だけを返す
+        const fresh = after
+            ? pendingNewMessages.filter((m) => new Date(m.createdAt) > new Date(after))
+            : pendingNewMessages
 
         // 新着がある場合
-        if (pendingNewMessages.length > 0) {
-            const newIds = pendingNewMessages.map((m) => m.id)
+        if (fresh.length > 0) {
+            // 先頭に差し込む用途なので、人気順ではなく時刻順（新しい順）で返す
+            const response = [...fresh]
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                .map(toTimelineMessage)
             // 新着メッセージを MESSAGE_POOL の先頭に追加（次回以降の /timeline で取得できるように）
-            MESSAGE_POOL.unshift(...pendingNewMessages)
-            // 新着リストをクリア（一度だけの動作）
-            pendingNewMessages = []
-            const response: ApiTimelineMessage = { messages: newIds }
+            MESSAGE_POOL.unshift(...fresh)
+            // 返した分を新着リストから外す（一度だけの動作）
+            const returned = new Set(fresh.map((m) => m.id))
+            pendingNewMessages = pendingNewMessages.filter((m) => !returned.has(m.id))
             return HttpResponse.json(response)
         }
 

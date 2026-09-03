@@ -73,21 +73,39 @@ export async function getUser(userId: string): Promise<ApiUserProfile> {
 /**
  * タイムラインを取得する。
  * @param sortByPopularity - true: 人気順, false: 最新順（デフォルト）
+ * @param before - この日時（ISO 8601）より古い投稿を取得する。
+ *   省略すると最新から取得する。クライアントの時計のズレで直近の投稿を
+ *   取りこぼさないよう、「最新から」のときは値を作らず必ず省略すること。
+ * @returns 投稿本文とスタンプ集計値を含むメッセージの配列
  */
-export async function getTimeline(sortByPopularity = false): Promise<ApiTimelineMessage> {
+export async function getTimeline(
+    sortByPopularity = false,
+    before?: string,
+): Promise<ApiTimelineMessage[]> {
     const url = createApiUrl(endpoints.timeline)
     url.searchParams.set('SortByPopularity', String(sortByPopularity))
-    return requestJson<ApiTimelineMessage>(url.toString())
+    if (before) {
+        url.searchParams.set('before', before)
+    }
+    return requestJson<ApiTimelineMessage[]>(url.toString())
 }
 
 /**
  * 新着メッセージを取得する。
  * @param sortByPopularity - true: 人気順, false: 最新順（デフォルト）
- * @returns 新着メッセージのIDリスト、または新着がない場合は null
+ * @param after - この日時（ISO 8601）より後の投稿を取得する。
+ *   通常は今表示している中で最も新しい投稿の createdAt を渡す。
+ * @returns 新着メッセージの配列、または新着がない場合は null
  */
-export async function getTimelineNew(sortByPopularity = false): Promise<ApiTimelineMessage | null> {
+export async function getTimelineNew(
+    sortByPopularity = false,
+    after?: string,
+): Promise<ApiTimelineMessage[] | null> {
     const url = createApiUrl(endpoints.timelineNew)
     url.searchParams.set('SortByPopularity', String(sortByPopularity))
+    if (after) {
+        url.searchParams.set('after', after)
+    }
     const response = await fetch(url.toString(), { headers: buildHeaders() })
     if (response.status === 204) {
         return null
@@ -98,7 +116,7 @@ export async function getTimelineNew(sortByPopularity = false): Promise<ApiTimel
             `API request failed: ${response.status}${errorBody ? ` - ${errorBody}` : ''}`,
         )
     }
-    return response.json() as Promise<ApiTimelineMessage>
+    return response.json() as Promise<ApiTimelineMessage[]>
 }
 
 /**
