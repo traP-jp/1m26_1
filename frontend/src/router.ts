@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/authStore'
 import { initiateLogin } from './lib/auth'
 
-import BookmarkView from './views/BookmarkView.vue'
+import BookmarkView from './views/ProfileView.vue'
 import TimelineView from './views/TimelineView.vue'
 
 const routes = [

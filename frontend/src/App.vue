@@ -5,7 +5,7 @@ import AppHeader from './components/layout/AppHeader.vue'
 
 <template>
     <div class="app-shell">
-        <AppHeader />
+        <AppHeader v-if="$route.path !== '/profile'" />
         <main>
             <RouterView />
         </main>
