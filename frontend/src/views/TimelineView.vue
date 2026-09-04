@@ -236,9 +236,10 @@ onMounted(async () => {
 
         if (result.success) {
             await initializeTimeline()
-            if (result.redirectTo === '/') {
-                setupWebSocket()
-            }
+            // 以前は redirectTo === '/' のときだけ接続していたが、/messages/:id への
+            // 直リンクからログインした場合 redirectTo はそちらになり、WebSocket が
+            // 一生繋がらないままになる。リダイレクト先に関わらず必ず接続する。
+            setupWebSocket()
             await router.replace({ path: result.redirectTo, query: {} })
         } else {
             authError.value = result.error || '認証に失敗しました'
