@@ -5,10 +5,22 @@ import SkeletonMessage from './SkeletonMessage.vue'
 
 const store = useTimelineStore()
 
-// 親コンポーネントへイベントを伝播するための emit
-const emit = defineEmits<{
-    (e: 'open-palette', messageId: string, position: { x: number; y: number }): void
-}>()
+// 末尾からこの件数手前に来たら、古い投稿の先読みを始める
+const PREFETCH_THRESHOLD = 8
+
+/**
+ * DynamicScroller の @update（emit-update を有効にしたときだけ発火する）。
+ * 引数は (viewStartIndex, viewEndIndex, visibleStartIndex, visibleEndIndex)。
+ * バッファ込みの描画末尾（viewEndIndex）がリスト末尾に近づいたら古い分を読み足す。
+ */
+function handleScrollerUpdate(_viewStartIndex: number, viewEndIndex: number): void {
+    if (store.messages.length === 0) return
+    // 再入・打ち止めはストア側もガードするが、失敗後に自動で叩き続けないよう loadMoreError も見る
+    if (store.isLoadingMore || !store.hasMore || store.loadMoreError) return
+    if (viewEndIndex >= store.messages.length - PREFETCH_THRESHOLD) {
+        store.fetchOlderMessages()
+    }
+}
 </script>
 
 <template>
@@ -51,14 +63,33 @@ const emit = defineEmits<{
             :min-item-size="120"
             key-field="id"
             page-mode
+            :emit-update="true"
+            @update="handleScrollerUpdate"
         >
             <template #default="{ item, index, active }">
                 <DynamicScrollerItem :item="item" :active="active" :data-index="index">
-                    <MessageItem
-                        :message="item"
-                        @open-palette="(id, pos) => emit('open-palette', id, pos)"
-                    />
+                    <MessageItem :message="item" />
                 </DynamicScrollerItem>
+            </template>
+
+            <!--
+                末尾インジケータ。#after はリスト最終行の下に一度だけ描画され、
+                スクローラ分岐がアクティブ（読み込み中でなく error でなく messages が 1 件以上）な
+                ときだけマウントされるので、状態表示の置き場所として都合が良い。
+            -->
+            <template #after>
+                <div class="timeline-foot" aria-live="polite">
+                    <span v-if="store.isLoadingMore" class="timeline-foot__text">
+                        過去の投稿を読み込み中...
+                    </span>
+                    <span v-else-if="store.loadMoreError" class="timeline-foot__error">
+                        <span>{{ store.loadMoreError }}</span>
+                        <button type="button" @click="store.fetchOlderMessages()">再試行</button>
+                    </span>
+                    <span v-else-if="!store.hasMore" class="timeline-foot__text">
+                        これ以上はありません
+                    </span>
+                </div>
             </template>
         </DynamicScroller>
     </section>
@@ -84,4 +115,37 @@ const emit = defineEmits<{
         transform: rotate(360deg);
     }
 }
+.timeline-foot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 16px 0 24px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: var(--text-size-s);
+}
+
+.timeline-foot__error {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-negative);
+}
+
+.timeline-foot__error button {
+    padding: 2px 10px;
+    border: 1px solid var(--surface-border-primary);
+    border-radius: 6px;
+    background: var(--background);
+    color: var(--text-primary);
+    font-size: var(--text-size-s);
+    cursor: pointer;
+}
+
+.timeline-foot__error button:hover {
+    background: var(--surface-secondary);
+}
+
 </style>

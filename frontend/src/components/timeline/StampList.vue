@@ -2,7 +2,7 @@
 import { computed, onUnmounted, ref, watchEffect } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
 import { useStampStore } from '../../stores/stampStore'
-import { useTimelineStore } from '../../stores/timelineStore'
+import { useMessageList } from '../../lib/messageListContext'
 import { traqApi } from '../../lib/api/traq'
 import { addStamp, groupStamps, hasMyStamp, removeStamp, type StampGroup } from '../../lib/stamps'
 import StampTooltip from './StampTooltip.vue'
@@ -17,7 +17,9 @@ const props = defineProps<{
 
 const authStore = useAuthStore()
 const stampStore = useStampStore()
-const timelineStore = useTimelineStore()
+// スタンプの楽観的更新の書き戻し先とパレットの開閉は、タイムラインと詳細ビューで
+// 相手が違う。ストアを直接掴まず、一覧側が provide する context 経由で呼ぶ。
+const messageList = useMessageList()
 
 // ============================================
 // 0. アニメーション関連の状態管理
@@ -152,7 +154,7 @@ const toggleStamp = async (stampId: string) => {
     const pinned = hasMyStamp(before, stampId, userId)
 
     // 楽観的更新。消えるアニメーションは groupedStamps の差分から出るので、ここでは待たない
-    timelineStore.updateMessageStamps(
+    messageList.updateMessageStamps(
         props.messageId,
         pinned ? removeStamp(before, stampId, userId) : addStamp(before, stampId, userId),
     )
@@ -165,7 +167,7 @@ const toggleStamp = async (stampId: string) => {
         }
     } catch (error) {
         console.error('スタンプ操作に失敗:', error)
-        timelineStore.updateMessageStamps(props.messageId, before)
+        messageList.updateMessageStamps(props.messageId, before)
     }
 }
 
@@ -176,13 +178,9 @@ const getStamp = (stampId: string) => stampStore.getStamp(stampId)
 const getStampDisplayName = (stampId: string) => stampStore.getStampDisplayName(stampId)
 const getStampImageUrl = (stampId: string) => stampStore.getStampImageUrl(stampId)
 
-const emit = defineEmits<{
-    (e: 'open-palette', messageId: string, position: { x: number; y: number }): void
-}>()
-
 const openPalette = (event: MouseEvent) => {
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
-    emit('open-palette', props.messageId, {
+    messageList.openPalette(props.messageId, {
         x: rect.left,
         y: rect.bottom, // ボタンの下端を基準にする
     })

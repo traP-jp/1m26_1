@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { oneMonthonApi, type ApiTimelineMessage } from '../lib/api/endpoints'
-import { totalStampCount } from '../lib/stamps'
+import { applyStampUpdate } from '../lib/stamps'
 
 export const useTimelineStore = defineStore('timeline', () => {
     type TimelineMessage = ApiTimelineMessage
@@ -17,6 +17,11 @@ export const useTimelineStore = defineStore('timeline', () => {
     /** さらに古い投稿が残っているか。0 件返ってきたら false になる。 */
     const hasMore = ref(true)
     const error = ref<string | null>(null)
+    /**
+     * 「古い分の追加読み込み」専用のエラー。全画面差し替えの error とは分けて持ち、
+     * 読み込み済みのタイムラインを消さずに末尾だけで知らせる。
+     */
+    const loadMoreError = ref<string | null>(null)
     const sortByPopularity = ref(false)
     const addAnimationStampId = ref<string | null>(null)
     const removeAnimationStampId = ref<string | null>(null)
@@ -67,6 +72,7 @@ export const useTimelineStore = defineStore('timeline', () => {
     const fetchTimeline = async () => {
         isLoading.value = true
         error.value = null
+        loadMoreError.value = null
 
         try {
             // before を渡さない = 最新から。
@@ -97,7 +103,7 @@ export const useTimelineStore = defineStore('timeline', () => {
         }
 
         isLoadingMore.value = true
-        error.value = null
+        loadMoreError.value = null
 
         try {
             const response = assertMessageArray(
@@ -120,7 +126,8 @@ export const useTimelineStore = defineStore('timeline', () => {
 
             messages.value = [...messages.value, ...fresh]
         } catch (err) {
-            error.value = err instanceof Error ? err.message : '過去の投稿の取得に失敗しました'
+            loadMoreError.value =
+                err instanceof Error ? err.message : '過去の投稿の取得に失敗しました'
             console.error('fetchOlderMessages error:', err)
         } finally {
             isLoadingMore.value = false
@@ -136,6 +143,7 @@ export const useTimelineStore = defineStore('timeline', () => {
         // messages が空になることでカーソルも消え、最新から取り直しになる。
         messages.value = []
         hasMore.value = true
+        loadMoreError.value = null
         fetchTimeline()
     }
 
@@ -169,15 +177,7 @@ export const useTimelineStore = defineStore('timeline', () => {
      * @param stamps - 更新後の (ユーザー, スタンプ) 単位の全件
      */
     const updateMessageStamps = (messageId: string, stamps: MessageStamps) => {
-        const index = messages.value.findIndex((m) => m.id === messageId)
-        if (index !== -1) {
-            const message = messages.value[index]
-            if (message) {
-                message.stamps = stamps
-                // popularity はバックエンドでの押下総数と同じ定義なので、ここでも辻褄を合わせる
-                message.popularity = totalStampCount(stamps)
-            }
-        }
+        applyStampUpdate(messages.value, messageId, stamps)
     }
 
     /**
@@ -189,6 +189,7 @@ export const useTimelineStore = defineStore('timeline', () => {
         isLoadingMore.value = false
         hasMore.value = true
         error.value = null
+        loadMoreError.value = null
     }
 
     // スタンプを追加・削除したときのアニメーションを起動
@@ -217,6 +218,7 @@ export const useTimelineStore = defineStore('timeline', () => {
         isLoadingMore,
         hasMore,
         error,
+        loadMoreError,
         sortByPopularity,
         addAnimationStampId,
         removeAnimationStampId,
