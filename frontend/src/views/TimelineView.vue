@@ -18,7 +18,6 @@ import { API_CONCURRENCY, mapWithConcurrency } from '../lib/concurrency'
 import { addStamp } from '../lib/stamps'
 import type { components } from '../gen/api-types'
 import StampPalette from '../components/stamp-palette/StampPalette.vue'
-import SkeletonMessage from '../components/timeline/SkeletonMessage.vue'
 
 type Stamp = traQcomponents['schemas']['Stamp']
 
@@ -32,6 +31,8 @@ const newMessageStore = useNewMessageStore()
 
 const isLoading = ref(true)
 const authError = ref<string | null>(null)
+
+defineExpose({ isLoading })
 
 const initializeTimeline = async () => {
     isLoading.value = true
@@ -356,12 +357,7 @@ const closePalette = () => {
 <template>
     <!-- ローディング中 -->
     <div v-if="isLoading" class="loading-container">
-        <div class="loading-spinner"></div>
-        <p>認証処理中...</p>
-        <SkeletonMessage />
-        <SkeletonMessage />
-        <SkeletonMessage />
-        <SkeletonMessage />
+        <img src="../assets/dopaQ.svg" alt="dopaQのローディング画面"/>
     </div>
     <div v-else-if="authError">{{ authError }}</div>
     <!-- タイムライン表示 -->
@@ -380,7 +376,13 @@ const closePalette = () => {
 
 <style scoped>
 .loading-container{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     padding: 16px;
+    width:100vw;
+    height: 100vh;
 }
 
 .loading-spinner {
