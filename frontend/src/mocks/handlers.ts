@@ -1,6 +1,8 @@
 import { http, HttpResponse, delay, ws } from 'msw'
 import type { components } from '@/gen/api-types'
 import type { traQcomponents } from '@/types/traq'
+import { toTimelineMessage } from '../lib/messageAdapter'
+import { totalStampCount } from '../lib/stamps'
 
 // ============================================
 // 1. 型定義（traQ API v3 用・手動定義）
@@ -17,7 +19,6 @@ type FileInfo = traQcomponents['schemas']['FileInfo']
 
 type ApiUser = components['schemas']['User']
 type ApiUserProfile = components['schemas']['UserProfile']
-type ApiTimelineMessage = components['schemas']['TimelineMessage']
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
 const apiUrl = (path: string): string => new URL(path, API_BASE_URL).toString()
@@ -109030,26 +109031,6 @@ const MESSAGE_POOL: Message[] = Array.from({ length: 50 }, (_, index) =>
     generateMockMessage(index + 1),
 )
 
-/** メッセージのスタンプ総数（人気順の並べ替え用）。 */
-const totalStampCount = (message: Message): number =>
-    message.stamps.reduce((sum, s) => sum + s.count, 0)
-
-/**
- * traQ の Message を、バックエンドの /api/timeline が返す形に畳む。
- * stamps は (ユーザー, スタンプ) 単位の配列で、traQ の MessageStamp とフィールドが
- * 一致するのでそのまま渡せる（backend/internal/handler/timeline.go の GetActivity 相当）。
- */
-const toTimelineMessage = (message: Message): ApiTimelineMessage => ({
-    id: message.id,
-    userId: message.userId,
-    channelId: message.channelId,
-    content: message.content,
-    createdAt: message.createdAt,
-    updatedAt: message.updatedAt,
-    popularity: totalStampCount(message),
-    stamps: message.stamps,
-})
-
 // ★ 複数人が同じスタンプを押しているケースを追加（先頭のメッセージを修正）
 const now = new Date().toISOString()
 const targetMessage = MESSAGE_POOL[0] // 最初のメッセージ
@@ -109296,7 +109277,7 @@ const oneMonthonHandlers = [
             .slice(0, 30)
 
         if (isPopular) {
-            page.sort((a, b) => totalStampCount(b) - totalStampCount(a))
+            page.sort((a, b) => totalStampCount(b.stamps) - totalStampCount(a.stamps))
         }
 
         return HttpResponse.json(page.map(toTimelineMessage))
