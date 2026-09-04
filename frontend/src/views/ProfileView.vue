@@ -543,7 +543,7 @@ watch(
 }
 
 .square-value {
-    font-size: 30px;
+    font-size: 40px !important;
     font-weight: bold;
 }
 
