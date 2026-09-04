@@ -379,6 +379,9 @@ const closePalette = () => {
 </template>
 
 <style scoped>
+.loading-container{
+    padding: 16px;
+}
 
 .loading-spinner {
     width: 2rem;
