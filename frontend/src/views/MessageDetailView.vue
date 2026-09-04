@@ -143,16 +143,19 @@ provide(messageListContextKey, {
 <style scoped>
 .message-detail__header {
     position: sticky;
-    /* AppHeader（TabSelector を含まない詳細ルートでも高さは変わらない）の直下に張り付ける */
+    /* 詳細ルートでは AppHeader を出さないので、この行が画面上端に貼り付く */
     top: 0;
-    z-index: 15;
+    z-index: 20;
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 16px;
+    /* タイムラインの人気/最新タブと同じ高さにして、行き来しても位置が動かないようにする */
+    min-height: var(--header-height);
+    padding: 0 16px;
     background: var(--surface-overlay);
+    /* -webkit- 付きは書かない。ビルド（lightningcss）が自動で足してくれるうえ、
+       手で後ろに並べると標準プロパティの方が重複扱いで削られてしまう */
     backdrop-filter: blur(12px) saturate(180%);
-    -webkit-backdrop-filter: blur(12px) saturate(180%);
     border-bottom: 1px solid var(--surface-border-secondary);
 }
 .message-detail__back {
