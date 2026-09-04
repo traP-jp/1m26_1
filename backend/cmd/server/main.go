@@ -10,11 +10,18 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/joho/godotenv"
+
 	"github.com/traP-jp/1m26_1/backend/internal/config"
 	"github.com/traP-jp/1m26_1/backend/internal/server"
 )
 
 func main() {
+	// .env はローカル開発用。存在しない環境（本番など）では無視する。
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		slog.Warn("failed to load .env", slog.Any("error", err))
+	}
+
 	cfg := config.Load()
 	e := server.New(cfg)
 

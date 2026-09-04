@@ -33,6 +33,12 @@ paths:
                             properties:
                                 code:
                                     type: string
+                                    description: traQ から受け取った認可コード。
+                                code_verifier:
+                                    type: string
+                                    description: PKCE のベリファイア。認可時に code_challenge を送った場合は必須。
+                            required:
+                                - code
             responses:
                 '200':
                     $ref: '#/components/responses/OAuth'
@@ -85,7 +91,7 @@ paths:
             summary: タイムラインを取得する。
             operationId: getTimeline
             parameters:
-                - name: SortByPopularity
+                - name: sortByPopularity
                   in: query
                   schema:
                       type: boolean
@@ -101,7 +107,9 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/TimelineMessage'
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/TimelineMessage'
                 '400':
                     $ref: '#/components/responses/BadRequest'
                 '401':
@@ -116,7 +124,7 @@ paths:
             summary: タイムラインの新しい投稿を取得する。
             operationId: getIn
             parameters:
-                - name: SortByPopularity
+                - name: sortByPopularity
                   in: query
                   schema:
                       type: boolean
@@ -132,7 +140,9 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/TimelineMessage'
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/TimelineMessage'
                 '204':
                     description: 変更なし。
                 '400':
@@ -216,6 +226,12 @@ components:
                     type: integer
                 refresh_token:
                     type: string
+                scope:
+                    type: string
+                    description: 取得時からスコープが狭められた場合にのみ返る。
+                id_token:
+                    type: string
+                    description: JWT 形式の ID Token。openid スコープ要求時のみ返る。
             required:
                 - access_token
                 - token_type
@@ -265,10 +281,6 @@ components:
             required:
                 - userId
 
-        SortByPopularity:
-            type: boolean
-            description: 人気 (True) / 最新 (False)
-
         Error:
             type: object
             properties:
@@ -279,20 +291,42 @@ components:
 
         TimelineMessage:
             type: object
+            description: タイムラインに並ぶ投稿 1 件。traQ を都度引き直さずに描画できるよう、本文と (ユーザー, スタンプ) 単位のスタンプ全件まで含めて返す。
             properties:
-                messages:
+                id:
+                    $ref: '#/components/schemas/UUID'
+                userId:
+                    $ref: '#/components/schemas/UserId'
+                channelId:
+                    $ref: '#/components/schemas/UUID'
+                content:
+                    type: string
+                createdAt:
+                    type: string
+                    format: date-time
+                updatedAt:
+                    type: string
+                    format: date-time
+                popularity:
+                    $ref: '#/components/schemas/Count'
+                stamps:
                     type: array
-                    minItems: 1
-                    maxItems: 50
-                    uniqueItems: true
                     items:
-                        $ref: '#/components/schemas/UUID'
+                        $ref: '#/components/schemas/Stamp'
             required:
-                - messages
+                - id
+                - userId
+                - channelId
+                - content
+                - createdAt
+                - updatedAt
+                - popularity
+                - stamps
 
         WebSocketEventType:
             type: string
             enum:
+                - Initialized
                 - MessageCreated
                 - MessageDeleted
                 - MessageEdited
@@ -306,6 +340,7 @@ components:
         UserWebSocketEvent:
             description: 送信される WebSocket イベント。
             oneOf:
+                - $ref: '#/components/schemas/InitializedEvent'
                 - $ref: '#/components/schemas/MessageCreatedEvent'
                 - $ref: '#/components/schemas/MessageDeletedEvent'
                 - $ref: '#/components/schemas/MessageEditedEvent'
@@ -327,6 +362,18 @@ components:
             required:
                 - type
                 - body
+
+        InitializedEvent:
+            allOf:
+                - $ref: '#/components/schemas/WebSocketEventBase'
+                - type: object
+                  properties:
+                      type:
+                          type: string
+                          enum:
+                              - Initialized
+                  required:
+                      - type
 
         MessageCreatedEvent:
             allOf:
@@ -499,7 +546,9 @@ components:
                 messageId:
                     $ref: '#/components/schemas/UUID'
                 stamps:
-                    $ref: '#/components/schemas/Stamps'
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Stamp'
             required:
                 - messageId
                 - stamps
@@ -539,26 +588,25 @@ components:
             required:
                 - stampId
 
-        Stamps:
-            type: object
-            properties:
-                superior:
-                    type: array
-                    maxItems: 5
-                    items:
-                        $ref: '#/components/schemas/Stamp'
-                othersCount:
-                    type: integer
-            required:
-                - superior
-
         Stamp:
             type: object
+            description: メッセージに対する (ユーザー, スタンプ) ごとの押下 1 件。
             properties:
-                id:
+                stampId:
                     $ref: '#/components/schemas/UUID'
+                userId:
+                    $ref: '#/components/schemas/UserId'
                 count:
                     $ref: '#/components/schemas/Count'
+                createdAt:
+                    type: string
+                    format: date-time
+                updatedAt:
+                    type: string
+                    format: date-time
             required:
-                - id
+                - stampId
+                - userId
                 - count
+                - createdAt
+                - updatedAt

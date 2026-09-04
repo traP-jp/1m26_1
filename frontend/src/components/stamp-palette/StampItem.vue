@@ -90,5 +90,4 @@ const onMouseLeave = () => {
     object-fit: contain;
     border-radius: 2px;
 }
-
 </style>

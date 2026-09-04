@@ -11,11 +11,11 @@ const TRAQ_API_BASE = 'https://q.trap.jp/api/v3'
 // ============================================
 
 type ChannelsResponse = traQcomponents['schemas']['ChannelsResponse']
-type ChannelPath = traQcomponents['schemas']['ChannelPath']
 type Stamp = traQcomponents['schemas']['Stamp']
 type Message = traQcomponents['schemas']['Message']
 type User = traQcomponents['schemas']['UserDetail']
 type MessageStamp = traQcomponents['schemas']['MessageStamp']
+type FileInfo = traQcomponents['schemas']['FileInfo']
 // ============================================
 // 3. traQ API クライアント関数
 // ============================================
@@ -36,14 +36,6 @@ export async function getUsers(): Promise<User[]> {
  */
 export async function getChannels(): Promise<ChannelsResponse> {
     const response = await apiClient.get<ChannelsResponse>(`${TRAQ_API_BASE}/channels`)
-    return response.data
-}
-
-/**
- * 指定されたチャンネルのフルパスを取得する。
- */
-export async function getChannelPath(channelId: string): Promise<ChannelPath> {
-    const response = await apiClient.get<ChannelPath>(`${TRAQ_API_BASE}/channels/${channelId}/path`)
     return response.data
 }
 
@@ -137,6 +129,27 @@ export async function getMessageStamps(messageId: string): Promise<MessageStamp[
     )
     return response.data
 }
+/**
+ * 添付ファイルのメタ情報を取得する
+ * @param fileId - ファイルUUID
+ * @returns ファイルメタ情報 (JSON)
+ */
+export async function getFileMeta(fileId: string): Promise<FileInfo> {
+    const response = await apiClient.get<FileInfo>(`${TRAQ_API_BASE}/files/${fileId}/meta`)
+    return response.data
+}
+
+/**
+ * 添付ファイルの実体データを取得する（画像・動画プレビュー用）
+ * @param fileId - ファイルUUID
+ * @returns ファイルのバイナリデータ (Blob)
+ */
+export async function getFileContent(fileId: string): Promise<Blob> {
+    const response = await apiClient.get<Blob>(`${TRAQ_API_BASE}/files/${fileId}`, {
+        responseType: 'blob',
+    })
+    return response.data
+}
 
 // ============================================
 // 4. エクスポート（オブジェクト形式も提供）
@@ -144,7 +157,6 @@ export async function getMessageStamps(messageId: string): Promise<MessageStamp[
 
 export const traqApi = {
     getChannels,
-    getChannelPath,
     getChannelMessages,
     getMessage,
     getStamps,
@@ -153,4 +165,6 @@ export const traqApi = {
     unpinStamp,
     getUsers,
     getMessageStamps,
+    getFileMeta,
+    getFileContent,
 } as const

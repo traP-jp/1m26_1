@@ -9,6 +9,8 @@ backend/bin/
 backend/server/
 backend/tmp/
 
+.env
+
 *.exe
 *.exe~
 *.dll
@@ -20,9 +22,3 @@ backend/tmp/
 *.out
 
 go.work
-
-.env
-.env.local
-.env.*.local
-*.env
-*.env.local

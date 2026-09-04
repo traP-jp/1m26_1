@@ -5,6 +5,7 @@ package openapi
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/oapi-codegen/runtime"
 )
@@ -18,6 +19,21 @@ const (
 func (e CountReachingThresholdEventType) Valid() bool {
 	switch e {
 	case CountReachingThresholdEventTypeCountReachingThreshold:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InitializedEventType.
+const (
+	InitializedEventTypeInitialized InitializedEventType = "Initialized"
+)
+
+// Valid indicates whether the value is a known member of the InitializedEventType enum.
+func (e InitializedEventType) Valid() bool {
+	switch e {
+	case InitializedEventTypeInitialized:
 		return true
 	default:
 		return false
@@ -147,6 +163,7 @@ func (e UsernameChangedEventType) Valid() bool {
 // Defines values for WebSocketEventType.
 const (
 	WebSocketEventTypeCountReachingThreshold WebSocketEventType = "CountReachingThreshold"
+	WebSocketEventTypeInitialized            WebSocketEventType = "Initialized"
 	WebSocketEventTypeMessageCreated         WebSocketEventType = "MessageCreated"
 	WebSocketEventTypeMessageDeleted         WebSocketEventType = "MessageDeleted"
 	WebSocketEventTypeMessageEdited          WebSocketEventType = "MessageEdited"
@@ -161,6 +178,8 @@ const (
 func (e WebSocketEventType) Valid() bool {
 	switch e {
 	case WebSocketEventTypeCountReachingThreshold:
+		return true
+	case WebSocketEventTypeInitialized:
 		return true
 	case WebSocketEventTypeMessageCreated:
 		return true
@@ -199,6 +218,15 @@ type CountReachingThresholdEventType string
 type Error struct {
 	Message string `json:"message"`
 }
+
+// InitializedEvent defines model for InitializedEvent.
+type InitializedEvent struct {
+	Body map[string]interface{} `json:"body"`
+	Type InitializedEventType   `json:"type"`
+}
+
+// InitializedEventType defines model for InitializedEvent.Type.
+type InitializedEventType string
 
 // MessageCreatedBody defines model for MessageCreatedBody.
 type MessageCreatedBody struct {
@@ -252,24 +280,32 @@ type MessageEditedEventType string
 
 // OAuthResponse defines model for OAuthResponse.
 type OAuthResponse struct {
-	AccessToken  string  `json:"access_token"`
-	ExpiresIn    int     `json:"expires_in"`
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int    `json:"expires_in"`
+
+	// IDToken JWT 形式の ID Token。openid スコープ要求時のみ返る。
+	IDToken      *string `json:"id_token,omitempty"`
 	RefreshToken *string `json:"refresh_token,omitempty"`
+
+	// Scope 取得時からスコープが狭められた場合にのみ返る。
+	Scope *string `json:"scope,omitempty"`
 
 	// TokenType Example: Bearer
 	TokenType string `json:"token_type"`
 }
 
-// SortByPopularity 人気 (True) / 最新 (False)
-type SortByPopularity = bool
-
-// Stamp defines model for Stamp.
+// Stamp メッセージに対する (ユーザー, スタンプ) ごとの押下 1 件。
 type Stamp struct {
 	// Count 自然数
-	Count Count `json:"count"`
+	Count     Count     `json:"count"`
+	CreatedAt time.Time `json:"createdAt"`
 
-	// ID UUID
-	ID UUID `json:"id"`
+	// StampID UUID
+	StampID   UUID      `json:"stampId"`
+	UpdatedAt time.Time `json:"updatedAt"`
+
+	// UserID ユーザーの ID
+	UserID UserID `json:"userId"`
 }
 
 // StampImageReplacedBody defines model for StampImageReplacedBody.
@@ -307,8 +343,8 @@ type StampInfoChangedEventType string
 // StampUpdatedBody defines model for StampUpdatedBody.
 type StampUpdatedBody struct {
 	// MessageID UUID
-	MessageID UUID   `json:"messageId"`
-	Stamps    Stamps `json:"stamps"`
+	MessageID UUID    `json:"messageId"`
+	Stamps    []Stamp `json:"stamps"`
 }
 
 // StampUpdatedEvent defines model for StampUpdatedEvent.
@@ -320,15 +356,23 @@ type StampUpdatedEvent struct {
 // StampUpdatedEventType defines model for StampUpdatedEvent.Type.
 type StampUpdatedEventType string
 
-// Stamps defines model for Stamps.
-type Stamps struct {
-	OthersCount *int    `json:"othersCount,omitempty"`
-	Superior    []Stamp `json:"superior"`
-}
-
-// TimelineMessage defines model for TimelineMessage.
+// TimelineMessage タイムラインに並ぶ投稿 1 件。traQ を都度引き直さずに描画できるよう、本文と (ユーザー, スタンプ) 単位のスタンプ全件まで含めて返す。
 type TimelineMessage struct {
-	Messages []UUID `json:"messages"`
+	// ChannelID UUID
+	ChannelID UUID      `json:"channelId"`
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"createdAt"`
+
+	// ID UUID
+	ID UUID `json:"id"`
+
+	// Popularity 自然数
+	Popularity Count     `json:"popularity"`
+	Stamps     []Stamp   `json:"stamps"`
+	UpdatedAt  time.Time `json:"updatedAt"`
+
+	// UserID ユーザーの ID
+	UserID UserID `json:"userId"`
 }
 
 // UUID UUID
@@ -433,23 +477,53 @@ type Unauthorized = Error
 
 // PostAPIOauthTokenJSONBody defines parameters for PostAPIOauthToken.
 type PostAPIOauthTokenJSONBody struct {
-	Code *string `json:"code,omitempty"`
+	// Code traQ から受け取った認可コード。
+	Code string `json:"code"`
+
+	// CodeVerifier PKCE のベリファイア。認可時に code_challenge を送った場合は必須。
+	CodeVerifier *string `json:"code_verifier,omitempty"`
 }
 
 // GetTimelineParams defines parameters for GetTimeline.
 type GetTimelineParams struct {
-	SortByPopularity bool `form:"SortByPopularity" json:"SortByPopularity"`
+	SortByPopularity bool `form:"sortByPopularity" json:"sortByPopularity"`
 	All              bool `form:"all" json:"all"`
 }
 
 // GetInParams defines parameters for GetIn.
 type GetInParams struct {
-	SortByPopularity bool `form:"SortByPopularity" json:"SortByPopularity"`
+	SortByPopularity bool `form:"sortByPopularity" json:"sortByPopularity"`
 	All              bool `form:"all" json:"all"`
 }
 
 // PostAPIOauthTokenJSONRequestBody defines body for PostAPIOauthToken for application/json ContentType.
 type PostAPIOauthTokenJSONRequestBody PostAPIOauthTokenJSONBody
+
+// AsInitializedEvent returns the union data inside the UserWebSocketEvent as a InitializedEvent
+func (t UserWebSocketEvent) AsInitializedEvent() (InitializedEvent, error) {
+	var body InitializedEvent
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromInitializedEvent overwrites any union data inside the UserWebSocketEvent as the provided InitializedEvent
+func (t *UserWebSocketEvent) FromInitializedEvent(v InitializedEvent) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeInitializedEvent performs a merge with any union data inside the UserWebSocketEvent, using the provided InitializedEvent
+func (t *UserWebSocketEvent) MergeInitializedEvent(v InitializedEvent) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
 
 // AsMessageCreatedEvent returns the union data inside the UserWebSocketEvent as a MessageCreatedEvent
 func (t UserWebSocketEvent) AsMessageCreatedEvent() (MessageCreatedEvent, error) {

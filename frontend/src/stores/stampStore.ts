@@ -41,10 +41,14 @@ export const useStampStore = defineStore('stamp', () => {
     const getStampDisplayName = (stampId: string): string => {
         const stamp = getStamp(stampId)
         if (!stamp) return '?'
-        if (stamp.isUnicode) {
-            return stamp.name
-        }
         return `:${stamp.name}:`
+    }
+
+    const getStampIdByName = (name: string): string | null => {
+        for (const [id, stamp] of stamps.value) {
+            if (stamp.name === name) return id
+        }
+        return null
     }
 
     const getStampImageUrl = (stampId: string, size = 48, format = 'webp'): string => {
@@ -135,6 +139,9 @@ export const useStampStore = defineStore('stamp', () => {
         fetchStamps,
         getStamp,
         getStampDisplayName,
+        getStampIdByName,
+        getMatchScore,
+        sortBySearchPriority,
         getStampImageUrl,
         searchStamps,
         fetchFrequentlyUsed,

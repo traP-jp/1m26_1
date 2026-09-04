@@ -14,10 +14,11 @@ import { wsManager } from '../lib/websocket'
 import { oneMonthonApi } from '../lib/api/endpoints'
 import type { traQcomponents } from '../types/traq'
 import { traqApi } from '../lib/api/traq.ts'
+import { API_CONCURRENCY, mapWithConcurrency } from '../lib/concurrency'
+import { addStamp } from '../lib/stamps'
 import type { components } from '../gen/api-types'
 import StampPalette from '../components/stamp-palette/StampPalette.vue'
 
-type Message = traQcomponents['schemas']['Message']
 type Stamp = traQcomponents['schemas']['Stamp']
 
 const route = useRoute()
@@ -46,10 +47,21 @@ const initializeTimeline = async () => {
 // WebSocket イベントハンドラ
 // ============================================
 
+// WebSocket の body は網の向こうから来る未検証の値なので、
+// 使う前に必ず形を確かめる。ここを省くと、例えば messageIds が無いときに
+// mapWithConcurrency の items.length で読み解けないエラーになって落ちる。
+const warnUnexpectedBody = (type: string, body: unknown) => {
+    console.warn(`WebSocket ${type}: 想定外の body 形式です`, body)
+}
+
 /**
  * 新規投稿作成イベント
  */
 const onMessageCreated = (body: { messageCount: number }) => {
+    if (typeof body?.messageCount !== 'number') {
+        warnUnexpectedBody('MessageCreated', body)
+        return
+    }
     newMessageStore.setCount(body.messageCount)
     newMessageStore.show()
 }
@@ -58,40 +70,76 @@ const onMessageCreated = (body: { messageCount: number }) => {
  * 投稿削除イベント
  */
 const onMessageDeleted = (body: { messageId: string }) => {
+    if (typeof body?.messageId !== 'string') {
+        warnUnexpectedBody('MessageDeleted', body)
+        return
+    }
     timelineStore.removeMessage(body.messageId)
 }
 
 /**
  * 投稿編集イベント
- * 該当メッセージを再取得してストアを更新する
+ * 編集で変わるのは本文だけなので、traQ から本文を引き直して既存の項目に上書きする
+ * （スタンプ集計値や popularity はバックエンド由来のものを保つ）
  */
 const onMessageEdited = async (body: { messageIds: string[] }) => {
-    // 各メッセージを並列で再取得
-    const results = await Promise.allSettled(body.messageIds.map((id) => traqApi.getMessage(id)))
+    if (!Array.isArray(body?.messageIds)) {
+        warnUnexpectedBody('MessageEdited', body)
+        return
+    }
+
+    // タイムラインに出ていないメッセージを引きに行っても捨てるだけなので絞る
+    const targetIds = body.messageIds.filter((id) =>
+        timelineStore.messages.some((m) => m.id === id),
+    )
+    if (targetIds.length === 0) return
+
+    const results = await mapWithConcurrency(targetIds, API_CONCURRENCY, (id) =>
+        traqApi.getMessage(id),
+    )
 
     for (const result of results) {
-        if (result.status === 'fulfilled') {
-            timelineStore.updateMessage(result.value)
-        } else {
+        if (result.status !== 'fulfilled') {
             console.error('メッセージ再取得に失敗:', result.reason)
+            continue
         }
+        const fetched = result.value
+        const existing = timelineStore.messages.find((m) => m.id === fetched.id)
+        if (!existing) continue
+        timelineStore.updateMessage({
+            ...existing,
+            content: fetched.content,
+            updatedAt: fetched.updatedAt,
+        })
     }
 }
 
 /**
  * スタンプ更新イベント
- * TODO: 実際のデータ構造に合わせて実装
+ *
+ * body.stamps は (ユーザー, スタンプ) 単位の全件なので、そのまま置き換えるだけでよい。
+ *
+ * 注意: バックエンドの traQ リレー（backend/internal/handler/traQ_websocket.go）は
+ * 現状 body に stamps 配列だけを入れており messageId を送ってこないため、実環境では
+ * 下のガードに落ちて何もしない。どのメッセージの更新かはフロントからは判別できないので、
+ * 直すのはバックエンド側。ここでは OpenAPI 仕様どおりの body が来た場合を実装しておく。
  */
 const onStampUpdated = (body: components['schemas']['StampUpdatedBody']) => {
-    // body.stamps に messageId が含まれていないため、現時点では更新不可
-    console.warn('StampUpdated イベントを受信しましたが、messageId がないため実装保留', body)
-    // TODO: バックエンドと協議し、messageId を追加するか、全メッセージを再取得するか検討
+    if (typeof body?.messageId !== 'string' || !Array.isArray(body?.stamps)) {
+        warnUnexpectedBody('StampUpdated', body)
+        return
+    }
+    timelineStore.updateMessageStamps(body.messageId, body.stamps)
 }
 
 /**
  * ユーザー名変更イベント
  */
 const onUsernameChanged = (body: components['schemas']['UsernameChangedBody']) => {
+    if (typeof body?.user?.userId !== 'string') {
+        warnUnexpectedBody('UsernameChanged', body)
+        return
+    }
     const user = userStore.users.get(body.user.id ?? body.user.userId)
     if (user && body.user.name) {
         user.displayName = body.user.name
@@ -113,6 +161,10 @@ const onUserIconReplaced = (body: { userId: string }) => {
  * スタンプ情報変更イベント（名称）
  */
 const onStampInfoChanged = (body: { stampId: string; name: string }) => {
+    if (typeof body?.stampId !== 'string' || typeof body?.name !== 'string') {
+        warnUnexpectedBody('StampInfoChanged', body)
+        return
+    }
     const stamp = stampStore.stamps.get(body.stampId)
     if (stamp) {
         stamp.name = body.name
@@ -149,25 +201,16 @@ const setupWebSocket = () => {
  */
 const handleLoadNewMessages = async () => {
     try {
-        const response = await oneMonthonApi.getTimelineNew(timelineStore.sortByPopularity)
-        if (response && response.messages.length > 0) {
-            // メッセージ詳細を取得
-            const results = await Promise.allSettled(
-                response.messages.map((id) => traqApi.getMessage(id)),
-            )
-            const newMessages: Message[] = []
-            for (const result of results) {
-                if (result.status === 'fulfilled') {
-                    newMessages.push(result.value)
-                } else {
-                    console.error('新着メッセージの詳細取得に失敗:', result.reason)
-                }
-            }
-            if (newMessages.length > 0) {
-                timelineStore.prependMessages(newMessages)
-                // トップへスクロール
-                window.scrollTo({ top: 0, behavior: 'smooth' })
-            }
+        // バックエンドが本文まで返すので、そのまま先頭に足せる。
+        // 「今持っている中で最も新しい投稿より後」を要求する。
+        const response = await oneMonthonApi.getTimelineNew(
+            timelineStore.sortByPopularity,
+            timelineStore.newestCreatedAt(),
+        )
+        if (response && response.length > 0) {
+            timelineStore.prependMessages(response)
+            // トップへスクロール（スクローラは page-mode なのでページごと動かす）
+            window.scrollTo({ top: 0, behavior: 'smooth' })
         }
     } catch (error) {
         console.error('新着メッセージの取得に失敗:', error)
@@ -188,7 +231,6 @@ onMounted(async () => {
     // 1. OAuth コールバック処理（code がある場合）
     // ============================================
     if (code) {
-        console.log(code)
         const result = await handleOAuthCallback(code, state || '')
 
         if (result.success) {
@@ -200,7 +242,13 @@ onMounted(async () => {
         } else {
             authError.value = result.error || '認証に失敗しました'
             isLoading.value = false
-            await router.replace({ path: '/', query: {} })
+            // ここで router.replace('/') すると、未認証かつ code の無いルートに
+            // 遷移してナビゲーションガードが再び initiateLogin() を呼び、
+            // 失敗 → リダイレクト → 失敗 …という無限ループになる
+            // （traQ 側のレート制限 429 を引き起こした原因）。
+            // 使用済みの code をアドレスバーから消すだけに留め、
+            // ルーター遷移は発生させない。
+            history.replaceState(history.state, '', route.path)
         }
         return
     }
@@ -223,7 +271,15 @@ onMounted(async () => {
         }
     } else {
         sessionStorage.setItem('login_redirect', route.fullPath)
-        await initiateLogin()
+        try {
+            await initiateLogin()
+        } catch (error) {
+            // サーキットブレーカーが働いた場合など、ここに来る。
+            // traQ への再リダイレクトはせず、理由を表示して止まる。
+            authError.value =
+                error instanceof Error ? error.message : 'ログインを開始できませんでした。'
+            isLoading.value = false
+        }
     }
 })
 
@@ -262,52 +318,30 @@ const handleSelectStamp = async (stamp: Stamp) => {
 
     const messageId = targetMessageId.value
     const stampId = stamp.id
+    const userId = authStore.userId
+    if (!userId) return
 
-    // 1. 現在のメッセージを取得
     const targetMessage = timelineStore.messages.find((m) => m.id === messageId)
     if (!targetMessage) {
         console.warn('対象メッセージが見つかりません')
         return
     }
 
-    // 2. 自分のエントリを探す
-    const myEntry = targetMessage.stamps.find(
-        (s) => s.stampId === stampId && s.userId === authStore.userId,
-    )
-
-    let updatedStamps = [...targetMessage.stamps]
-
-    if (myEntry) {
-        // 既に押している → count を +1
-        updatedStamps = updatedStamps.map((s) => {
-            if (s.stampId === stampId && s.userId === authStore.userId) {
-                return { ...s, count: s.count + 1 }
-            }
-            return s
-        })
-    } else {
-        // 新規追加
-        const now = new Date().toISOString()
-        updatedStamps.push({
-            stampId: stampId,
-            count: 1,
-            userId: authStore.userId!,
-            createdAt: now,
-            updatedAt: now,
-        })
+    const before = targetMessage.stamps
+    const wasPinned = before.some((s) => s.stampId === stampId && s.userId === userId)
+    if (!wasPinned) {
+        timelineStore.triggerAddStampAnimation(stampId)
     }
 
-    // 3. 楽観的更新（即座に UI 反映）
-    timelineStore.updateMessageStamps(messageId, updatedStamps)
+    // 楽観的更新
+    timelineStore.updateMessageStamps(messageId, addStamp(before, stampId, userId))
 
-    // 4. 実際の API リクエスト
     try {
         await traqApi.pinStamp(messageId, stampId)
         // 成功 → WebSocket イベントで最終状態に収束（モック環境ではイベントが来ないが、楽観的更新で十分）
     } catch (error) {
         console.error('スタンプ追加に失敗:', error)
-        // 失敗したら元に戻す（ロールバック）
-        timelineStore.updateMessageStamps(messageId, targetMessage.stamps)
+        timelineStore.updateMessageStamps(messageId, before)
     }
 }
 
@@ -328,7 +362,7 @@ const closePalette = () => {
     <!-- タイムライン表示 -->
     <div v-else>
         <NewMessageBanner @load-new-messages="handleLoadNewMessages" />
-        <TimelineContainer :messages="timelineStore.messages" @open-palette="handleOpenPalette" />
+        <TimelineContainer @open-palette="handleOpenPalette" />
     </div>
 
     <StampPalette
