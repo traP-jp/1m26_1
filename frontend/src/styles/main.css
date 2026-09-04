@@ -27,6 +27,9 @@
     --surface-translucent: rgba(255, 255, 255, 0.8);
     /* スクロール中のコンテンツに重なるヘッダー/オーバーレイ用（下地を透かしすぎない） */
     --surface-overlay: rgba(255, 255, 255, 0.92);
+    /* 画面上端に貼り付く行の高さ。タイムラインの人気/最新タブと、
+       詳細ビューのチャンネルヘッダーで揃える（行き来しても位置が動かないように） */
+    --header-height: 48px;
     --text-primary: var(--gray-800);
     --text-secondary: var(--gray-600);
     --text-positive: #58bf35;
@@ -55,19 +58,15 @@ a {
     margin: 0 auto;
     background: white;
 }
-.app-header,
+/* .app-header の見た目は AppHeader.vue 側で完結させる。
+   ここに padding などを置くと、main.css がコンポーネントのスタイルより
+   後ろに出力される都合で component 側の指定を打ち消してしまう。 */
 .app-footer {
     display: flex;
     gap: 1rem;
     padding: 1rem;
     border-color: #e5e7eb;
     border-style: solid;
-}
-.app-header {
-    border-width: 0 0 1px;
-    font-weight: 700;
-}
-.app-footer {
     border-width: 1px 0 0;
 }
 .timeline,

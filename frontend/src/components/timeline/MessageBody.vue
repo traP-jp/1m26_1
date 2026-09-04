@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { traQMarkdownIt } from '@traptitech/traq-markdown-it'
 import type {
     EmbeddingFile,
     EmbeddingMessage,
@@ -9,9 +8,7 @@ import type {
 import '@traptitech/traq-markdown-it/index.css'
 import 'katex/dist/katex.min.css'
 
-import { markdownStore } from '../../stores/markdownStore'
-
-const TRAQ_ORIGIN = 'https://q.trap.jp'
+import { markdownParser } from '../../lib/markdownParser'
 
 const props = defineProps<{
     content: string
@@ -22,12 +19,6 @@ const emit = defineEmits<{
     (e: 'quotes', messageIds: string[]): void
 }>()
 
-/**
- * Parser はコンポーネントインスタンス間で共有（再生成しない）
- * 内部的に Store を保持しているため、Store のデータ更新には追従する
- */
-const parser = new traQMarkdownIt(markdownStore, undefined, TRAQ_ORIGIN)
-
 const EMPTY_RESULT: MarkdownRenderResult = { renderedText: '', rawText: '', embeddings: [] }
 
 /**
@@ -37,7 +28,7 @@ const renderResult = computed<MarkdownRenderResult>(() => {
     if (!props.content) return EMPTY_RESULT
 
     try {
-        return parser.render(props.content)
+        return markdownParser.render(props.content)
     } catch (error) {
         console.error('traQ Markdown rendering error:', error)
         return EMPTY_RESULT
@@ -95,6 +86,17 @@ const onBodyClick = (event: MouseEvent) => {
 
 <style scoped>
 @import 'katex/dist/katex.min.css';
+
+/* traQ の内部リンク（メンション）はリンクを持たない装飾テキスト。
+   markdownParser が <a> ではなく <span> で描画するので、青字・太字だけを残し、
+   カーソルは囲みの投稿カード（cursor: pointer）に従わせる */
+.markdown-body :deep(.message-user-link),
+.markdown-body :deep(.message-group-link),
+.markdown-body :deep(.message-channel-link) {
+    color: #005bac;
+    font-weight: bold;
+    cursor: inherit;
+}
 
 .markdown-body :deep(pre code) {
     color: #e8e8ed; /* 白に近い明るい色 */

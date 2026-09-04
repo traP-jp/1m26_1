@@ -3,6 +3,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useUserStore } from '../../stores/userStore'
 import { useChannelStore } from '../../stores/channelStore'
 import { formatDate } from '../../lib/dateFormatter'
+import { createCardActivationHandler } from '../../lib/messageInteraction'
+import { useMessageList } from '../../lib/messageListContext'
 import MessageBody from './MessageBody.vue'
 import type { traQcomponents } from '../../types/traq'
 
@@ -10,6 +12,12 @@ const props = defineProps<{ message: traQcomponents['schemas']['Message'] }>()
 
 const userStore = useUserStore()
 const channelStore = useChannelStore()
+const messageList = useMessageList()
+
+// 引用元を中心にした詳細ビューへ。「全文を表示する」やリンクのタップは
+// createCardActivationHandler が弾く。既に表示している投稿を指していた場合に
+// どうするか（遷移せず中心へ寄せ直す）は一覧側が決める。
+const openQuoted = createCardActivationHandler(() => messageList.openMessage(props.message.id))
 
 const iconUrl = computed(() => userStore.getIconUrl(props.message.userId))
 const displayName = computed(() => userStore.getUserName(props.message.userId))
@@ -52,7 +60,14 @@ watch(
 </script>
 
 <template>
-    <article class="quote-card">
+    <article
+        class="quote-card"
+        role="link"
+        tabindex="0"
+        @click="openQuoted"
+        @keydown.enter="openQuoted"
+        @keydown.space="openQuoted"
+    >
         <header class="quote-header">
             <img
                 v-if="iconUrl"
@@ -114,6 +129,11 @@ watch(
     background: var(--gray-0);
     border: 1px solid var(--surface-border-secondary);
     border-radius: 12px;
+    cursor: pointer;
+}
+.quote-card:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
 }
 
 .quote-header {
