@@ -5,21 +5,22 @@ import { useTimelineStore } from '../stores/timelineStore'
 import { useUserStore } from '../stores/userStore'
 import { useStampStore } from '../stores/stampStore'
 import { useNewMessageStore } from '../stores/newMessageStore'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { messageListContextKey } from '../lib/messageListContext'
 import { useAuthStore } from '../stores/authStore'
 import { initiateLogin, handleOAuthCallback } from '../lib/auth'
 import { initializeTimelineMetadata } from '../stores/timelineMetadata'
 import { wsManager } from '../lib/websocket'
 import { oneMonthonApi } from '../lib/api/endpoints'
-import type { traQcomponents } from '../types/traq'
 import { traqApi } from '../lib/api/traq.ts'
 import { API_CONCURRENCY, mapWithConcurrency } from '../lib/concurrency'
-import { addStamp } from '../lib/stamps'
 import type { components } from '../gen/api-types'
 import StampPalette from '../components/stamp-palette/StampPalette.vue'
+import { useStampPalette } from '../composables/useStampPalette'
 
-type Stamp = traQcomponents['schemas']['Stamp']
+// KeepAlive の :include で名指しするための名前（App.vue 参照）
+defineOptions({ name: 'TimelineView' })
 
 const route = useRoute()
 const router = useRouter()
@@ -302,54 +303,28 @@ onUnmounted(() => {
 // ============================================
 // スタンプパレット管理
 // ============================================
-const isPaletteOpen = ref(false)
-const targetMessageId = ref<string | null>(null)
-const palettePosition = ref({ x: 0, y: 0 })
+const { isPaletteOpen, palettePosition, openPalette, closePalette, selectStamp } = useStampPalette({
+    findMessage: (messageId) => timelineStore.messages.find((message) => message.id === messageId),
+    updateMessageStamps: timelineStore.updateMessageStamps,
+    onAdd: (_messageId, stampId, stamps) => {
+        const userId = authStore.userId
+        if (
+            userId &&
+            !stamps.some((stamp) => stamp.stampId === stampId && stamp.userId === userId)
+        ) {
+            timelineStore.triggerAddStampAnimation(stampId)
+        }
+    },
+})
 
-const handleOpenPalette = (messageId: string, position: { x: number; y: number }) => {
-    targetMessageId.value = messageId
-    palettePosition.value = position
-    isPaletteOpen.value = true
-}
-
-// スタンプ選択時の処理（楽観的更新付き）
-const handleSelectStamp = async (stamp: Stamp) => {
-    if (!targetMessageId.value) return
-
-    const messageId = targetMessageId.value
-    const stampId = stamp.id
-    const userId = authStore.userId
-    if (!userId) return
-
-    const targetMessage = timelineStore.messages.find((m) => m.id === messageId)
-    if (!targetMessage) {
-        console.warn('対象メッセージが見つかりません')
-        return
-    }
-
-    const before = targetMessage.stamps
-    const wasPinned = before.some((s) => s.stampId === stampId && s.userId === userId)
-    if (!wasPinned) {
-        timelineStore.triggerAddStampAnimation(stampId)
-    }
-
-    // 楽観的更新
-    timelineStore.updateMessageStamps(messageId, addStamp(before, stampId, userId))
-
-    try {
-        await traqApi.pinStamp(messageId, stampId)
-        // 成功 → WebSocket イベントで最終状態に収束（モック環境ではイベントが来ないが、楽観的更新で十分）
-    } catch (error) {
-        console.error('スタンプ追加に失敗:', error)
-        timelineStore.updateMessageStamps(messageId, before)
-    }
-}
-
-// パレットを閉じる（パレット外クリック用）
-const closePalette = () => {
-    isPaletteOpen.value = false
-    targetMessageId.value = null
-}
+// 投稿カードから飛んでくる操作の受け口。カードは階層が深く emit で中継しきれないので
+// provide で渡す（MessageDetailView も同じ形で、書き戻し先のストアだけが違う）。
+provide(messageListContextKey, {
+    updateMessageStamps: timelineStore.updateMessageStamps,
+    openMessage: (messageId: string) =>
+        router.push({ name: 'message-detail', params: { messageId } }),
+    openPalette,
+})
 </script>
 
 <template>
@@ -362,12 +337,12 @@ const closePalette = () => {
     <!-- タイムライン表示 -->
     <div v-else>
         <NewMessageBanner @load-new-messages="handleLoadNewMessages" />
-        <TimelineContainer @open-palette="handleOpenPalette" />
+        <TimelineContainer />
     </div>
 
     <StampPalette
         v-model="isPaletteOpen"
-        @select="handleSelectStamp"
+        @select="selectStamp"
         @close="closePalette"
         :position="palettePosition"
     />

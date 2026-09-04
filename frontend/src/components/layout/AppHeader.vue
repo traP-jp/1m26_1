@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import TabSelector from '../timeline/TabSelector/TabSelector.vue'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+// 人気/最新タブはタイムライン専用。詳細ビューでは意味を持たないので出さない
+const showTabSelector = computed(() => route.name === 'timeline')
 
 let lastScrollY = window.scrollY
 const isDisplay = ref(true)
@@ -30,7 +35,7 @@ onUnmounted(() => {
         <div>
             <RouterLink class="title" to="/">ドパガキ用traQ(仮)</RouterLink>
         </div>
-        <TabSelector />
+        <TabSelector v-if="showTabSelector" />
     </header>
 </template>
 <style>
