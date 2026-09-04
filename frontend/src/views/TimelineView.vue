@@ -18,6 +18,7 @@ import { API_CONCURRENCY, mapWithConcurrency } from '../lib/concurrency'
 import { addStamp } from '../lib/stamps'
 import type { components } from '../gen/api-types'
 import StampPalette from '../components/stamp-palette/StampPalette.vue'
+import SkeletonMessage from '../components/timeline/SkeletonMessage.vue'
 
 type Stamp = traQcomponents['schemas']['Stamp']
 
@@ -357,6 +358,10 @@ const closePalette = () => {
     <div v-if="isLoading" class="loading-container">
         <div class="loading-spinner"></div>
         <p>認証処理中...</p>
+        <SkeletonMessage />
+        <SkeletonMessage />
+        <SkeletonMessage />
+        <SkeletonMessage />
     </div>
     <div v-else-if="authError">{{ authError }}</div>
     <!-- タイムライン表示 -->
@@ -372,3 +377,29 @@ const closePalette = () => {
         :position="palettePosition"
     />
 </template>
+
+<style scoped>
+.loading-container {
+    padding: 1rem;
+}
+
+.loading-spinner {
+    width: 2rem;
+    height: 2rem;
+    margin: 1rem auto;
+    border: 4px solid var(--surface-border-secondary);
+    border-top-color: var(--accent-color, #ffac47);
+    border-radius: 50%;
+    animation: loading-spin 0.8s linear infinite;
+}
+
+.loading-container p {
+    text-align: center;
+}
+
+@keyframes loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+</style>
