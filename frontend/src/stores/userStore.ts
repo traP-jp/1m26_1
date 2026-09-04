@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { traqApi } from '../lib/api/traq'
+import { traqIconUrl } from '../lib/icons'
 import type { traQcomponents } from '../types/traq'
 
 type User = traQcomponents['schemas']['UserDetail']
@@ -43,7 +44,7 @@ export const useUserStore = defineStore('user', () => {
     const getIconUrl = (userId: string): string => {
         const user = users.value.get(userId)
         if (user?.name) {
-            return `https://image-proxy.trap.jp/icon/${user.name}?width=64&height=64`
+            return traqIconUrl(user.name)
         }
         return '' // デフォルトアイコン（必要に応じて設定）
     }
@@ -51,7 +52,7 @@ export const useUserStore = defineStore('user', () => {
     const getUserIconByName = (name: string): string | null => {
         for (const [, user] of users.value) {
             if (user.name === name) {
-                return `https://image-proxy.trap.jp/icon/${user.name}?width=64&height=64`
+                return traqIconUrl(user.name)
             }
         }
         return null

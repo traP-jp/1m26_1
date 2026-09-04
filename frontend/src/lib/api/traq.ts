@@ -16,6 +16,7 @@ type Message = traQcomponents['schemas']['Message']
 type User = traQcomponents['schemas']['UserDetail']
 type MessageStamp = traQcomponents['schemas']['MessageStamp']
 type FileInfo = traQcomponents['schemas']['FileInfo']
+type MessageSearchResult = traQcomponents['schemas']['MessageSearchResult']
 // ============================================
 // 3. traQ API クライアント関数
 // ============================================
@@ -28,6 +29,17 @@ export async function getUsers(): Promise<User[]> {
         `${TRAQ_API_BASE}/users`,
         { params: { includeSuspended: false } }, // 有効ユーザーのみ
     )
+    return response.data
+}
+
+/**
+ * ログイン中のユーザーの詳細情報を取得する。
+ *
+ * GET /users は bio・tags・homeChannel を含まない軽量な User しか返さないため、
+ * プロフィール表示（自己紹介文など）が必要な場合は getUsers() ではなくこちらを使うこと。
+ */
+export async function getMe(): Promise<User> {
+    const response = await apiClient.get<User>(`${TRAQ_API_BASE}/users/me`)
     return response.data
 }
 
@@ -90,6 +102,55 @@ export async function getChannelMessages(
  */
 export async function getMessage(messageId: string): Promise<Message> {
     const response = await apiClient.get<Message>(`${TRAQ_API_BASE}/messages/${messageId}`)
+    return response.data
+}
+
+interface SearchMessagesOptions {
+    /** 投稿者ユーザーUUIDの配列（traQ ID ではなく UUID を渡すこと） */
+    from?: string[]
+    /** この日時以降に投稿されたメッセージ（ISO 8601） */
+    after?: string
+    /** この日時以前に投稿されたメッセージ（ISO 8601） */
+    before?: string
+    /** 取得件数 */
+    limit?: number
+    /** オフセット */
+    offset?: number
+    /**
+     * ソート順（デフォルトは traQ 側の既定に従う）。
+     * 符号の向きが直感と逆なので注意: 'createdAt' が作成日時の新しい順（降順）、
+     * '-createdAt' が古い順（昇順）。'updatedAt' 系も同様。
+     */
+    sort?: 'createdAt' | '-createdAt' | 'updatedAt' | '-updatedAt'
+}
+
+/**
+ * メッセージを検索する。
+ *
+ * totalHits は limit/offset を無視した全体のヒット件数なので、
+ * 「件数だけ知りたい」場合は limit: 1 を指定すれば十分（hits は使わなくてよい）。
+ */
+export async function searchMessages({
+    from,
+    after,
+    before,
+    limit,
+    offset,
+    sort,
+}: SearchMessagesOptions = {}): Promise<MessageSearchResult> {
+    const params = new URLSearchParams()
+    for (const userId of from ?? []) {
+        params.append('from', userId)
+    }
+    if (after) params.set('after', after)
+    if (before) params.set('before', before)
+    if (limit !== undefined) params.set('limit', String(limit))
+    if (offset !== undefined) params.set('offset', String(offset))
+    if (sort) params.set('sort', sort)
+
+    const response = await apiClient.get<MessageSearchResult>(
+        `${TRAQ_API_BASE}/messages?${params.toString()}`,
+    )
     return response.data
 }
 
@@ -171,9 +232,11 @@ export async function getFileContent(fileId: string): Promise<Blob> {
 // ============================================
 
 export const traqApi = {
+    getMe,
     getChannels,
     getChannelMessages,
     getMessage,
+    searchMessages,
     getStamps,
     getStampImage,
     pinStamp,

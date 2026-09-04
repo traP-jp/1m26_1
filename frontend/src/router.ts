@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/authStore'
 import { initiateLogin } from './lib/auth'
 
-import BookmarkView from './views/ProfileView.vue'
+import ProfileView from './views/ProfileView.vue'
 import TimelineView from './views/TimelineView.vue'
 import MessageDetailView from './views/MessageDetailView.vue'
 
@@ -17,7 +17,7 @@ const routes = [
     {
         path: '/profile',
         name: 'profile',
-        component: BookmarkView,
+        component: ProfileView,
         meta: { requiresAuth: true },
     },
     {

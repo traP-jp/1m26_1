@@ -37,7 +37,7 @@ onUnmounted(() => {
 
 <template>
     <footer class="app-footer" :class="{ 'is-scrolling': isScrolling }">
-        <RouterLink to="/">
+        <RouterLink to="/profile">
             <img :src="profileIcon" alt="プロフィール" />
         </RouterLink>
         <RouterLink to="/">
