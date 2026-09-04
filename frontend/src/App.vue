@@ -17,9 +17,7 @@ const isTimelineLoading = computed(
         <AppHeader v-if="!isTimelineLoading" />
         <main>
             <RouterView v-slot="{ Component }">
-                <KeepAlive :include="['TimelineView']">
-                    <component :is="Component" ref="currentView" />
-                </KeepAlive>
+                <component :is="Component" ref="currentView" />
             </RouterView>
         </main>
         <AppFooter v-if="!isTimelineLoading" />
