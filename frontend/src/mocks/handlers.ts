@@ -109377,6 +109377,7 @@ const traqHandlers = [
             const offset = parseInt(url.searchParams.get('offset') || '0', 10)
             const since = url.searchParams.get('since')
             const until = url.searchParams.get('until')
+            const inclusive = url.searchParams.get('inclusive') !== 'false'
             const order = url.searchParams.get('order') || 'desc'
 
             let messages = MESSAGE_POOL.filter((m) => m.channelId === channelId)
@@ -109390,11 +109391,19 @@ const traqHandlers = [
 
             if (since) {
                 const sinceDate = new Date(since)
-                messages = messages.filter((m) => new Date(m.createdAt) >= sinceDate)
+                messages = messages.filter((m) =>
+                    inclusive
+                        ? new Date(m.createdAt) >= sinceDate
+                        : new Date(m.createdAt) > sinceDate,
+                )
             }
             if (until) {
                 const untilDate = new Date(until)
-                messages = messages.filter((m) => new Date(m.createdAt) <= untilDate)
+                messages = messages.filter((m) =>
+                    inclusive
+                        ? new Date(m.createdAt) <= untilDate
+                        : new Date(m.createdAt) < untilDate,
+                )
             }
 
             messages = [...messages].sort((a, b) => {

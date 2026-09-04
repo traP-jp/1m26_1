@@ -39,28 +39,43 @@ export async function getChannels(): Promise<ChannelsResponse> {
     return response.data
 }
 
+interface ChannelMessagesOptions {
+    limit?: number
+    offset?: number
+    since?: string
+    until?: string
+    inclusive?: boolean
+    order?: 'asc' | 'desc'
+}
+
 /**
  * 指定されたチャンネルのメッセージ一覧を取得する。
  * @param channelId - チャンネルID
- * @param limit - 取得件数（デフォルト: 50）
- * @param offset - オフセット（デフォルト: 0）
- * @param since - この日時以降のメッセージ（ISO 8601）
- * @param until - この日時以前のメッセージ（ISO 8601）
- * @param order - 昇順/降順（'asc' または 'desc'、デフォルト: 'desc'）
+ * @param options.limit - 取得件数（デフォルト: 50）
+ * @param options.offset - オフセット（デフォルト: 0）
+ * @param options.since - この日時以降のメッセージ（ISO 8601）
+ * @param options.until - この日時以前のメッセージ（ISO 8601）
+ * @param options.inclusive - since/until の境界を結果に含めるか（省略時は traQ 側の既定に従う）。
+ *   ある投稿を起点に「それより前後」を取るときは false を渡し、起点自身の重複取得を避ける。
+ * @param options.order - 昇順/降順（'asc' または 'desc'、デフォルト: 'desc'）
  */
 export async function getChannelMessages(
     channelId: string,
-    limit = 50,
-    offset = 0,
-    since?: string,
-    until?: string,
-    order: 'asc' | 'desc' = 'desc',
+    {
+        limit = 50,
+        offset = 0,
+        since,
+        until,
+        inclusive,
+        order = 'desc',
+    }: ChannelMessagesOptions = {},
 ): Promise<Message[]> {
     const params = new URLSearchParams()
     params.set('limit', String(limit))
     params.set('offset', String(offset))
     if (since) params.set('since', since)
     if (until) params.set('until', until)
+    if (inclusive !== undefined) params.set('inclusive', String(inclusive))
     params.set('order', order)
 
     const response = await apiClient.get<Message[]>(
