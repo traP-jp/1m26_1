@@ -4,11 +4,6 @@ import { useTimelineStore } from '../../stores/timelineStore'
 
 const store = useTimelineStore()
 
-// 親コンポーネントへイベントを伝播するための emit
-const emit = defineEmits<{
-    (e: 'open-palette', messageId: string, position: { x: number; y: number }): void
-}>()
-
 // 末尾からこの件数手前に来たら、古い投稿の先読みを始める
 const PREFETCH_THRESHOLD = 8
 
@@ -65,10 +60,7 @@ function handleScrollerUpdate(_viewStartIndex: number, viewEndIndex: number): vo
         >
             <template #default="{ item, index, active }">
                 <DynamicScrollerItem :item="item" :active="active" :data-index="index">
-                    <MessageItem
-                        :message="item"
-                        @open-palette="(id, pos) => emit('open-palette', id, pos)"
-                    />
+                    <MessageItem :message="item" />
                 </DynamicScrollerItem>
             </template>
 
@@ -84,9 +76,7 @@ function handleScrollerUpdate(_viewStartIndex: number, viewEndIndex: number): vo
                     </span>
                     <span v-else-if="store.loadMoreError" class="timeline-foot__error">
                         <span>{{ store.loadMoreError }}</span>
-                        <button type="button" @click="store.fetchOlderMessages()">
-                            再試行
-                        </button>
+                        <button type="button" @click="store.fetchOlderMessages()">再試行</button>
                     </span>
                     <span v-else-if="!store.hasMore" class="timeline-foot__text">
                         これ以上はありません

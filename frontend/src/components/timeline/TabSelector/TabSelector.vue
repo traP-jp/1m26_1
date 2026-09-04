@@ -29,7 +29,8 @@ const selectTab = (label: string) => {
 <style scoped>
 .selector {
     width: 100%;
-    padding: 6px 21px;
+    /* 高さはヘッダー（--header-height）に従うので縦のパディングは持たない */
+    padding: 0 21px;
 
     display: flex;
     justify-content: center;

@@ -119,3 +119,19 @@ export function hasOtherUsersStamp(
 export function totalStampCount(stamps: Stamp[]): number {
     return toStampArray(stamps).reduce((sum, s) => sum + s.count, 0)
 }
+
+/**
+ * 一覧の中の 1 件のスタンプを差し替える（楽観的更新・WebSocket 反映の書き戻し）。
+ * timelineStore と channelTimelineStore で共通。
+ * popularity はバックエンドでの押下総数と同じ定義なので、ここでも辻褄を合わせる。
+ */
+export function applyStampUpdate(
+    messages: components['schemas']['TimelineMessage'][],
+    messageId: string,
+    stamps: Stamp[],
+): void {
+    const message = messages.find((m) => m.id === messageId)
+    if (!message) return
+    message.stamps = stamps
+    message.popularity = totalStampCount(stamps)
+}
