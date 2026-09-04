@@ -358,6 +358,13 @@ const closePalette = () => {
     <!-- ローディング中 -->
     <div v-if="isLoading" class="loading-container">
         <img src="../assets/dopaQ.svg" alt="dopaQのローディング画面"/>
+        <div class="loading-animation">
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
     </div>
     <div v-else-if="authError">{{ authError }}</div>
     <!-- タイムライン表示 -->
@@ -381,27 +388,27 @@ const closePalette = () => {
     align-items: center;
     justify-content: center;
     padding: 16px;
-    width:100vw;
+    width:100%;
     height: 100vh;
 }
-
-.loading-spinner {
-    width: 2rem;
-    height: 2rem;
-    margin: 1rem auto;
-    border: 4px solid var(--surface-border-secondary);
-    border-top-color: var(--accent-color, #ffac47);
-    border-radius: 50%;
-    animation: loading-spin 0.8s linear infinite;
+.loading-animation{
+    margin-top:16px;
+    width:70%;
+    height:200px;
+    overflow-y: hidden;
+}
+.loading-animation > div{
+    margin:4px auto;
+    height:86px;
+    width:100%;
+    background-color: var(--color-primary);
+    animation: loading-scroll 2s ease-out infinite;
+    opacity: 0.3;
 }
 
-.loading-container p {
-    text-align: center;
-}
-
-@keyframes loading-spin {
+@keyframes loading-scroll {
     to {
-        transform: rotate(360deg);
+        transform: translateY(-180px);
     }
 }
 </style>
