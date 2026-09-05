@@ -21,9 +21,14 @@ ENV VITE_API_BASE=$VITE_API_BASE \
 
 RUN pnpm run build-only
 
-FROM nginx:1.29-alpine
+FROM node:24.17.0-alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /app/dist /usr/share/nginx/html
+WORKDIR /app
 
-EXPOSE 80
+COPY --from=builder /app/dist ./dist
+COPY server.mjs ./server.mjs
+
+ENV PORT=8080
+EXPOSE 8080
+
+CMD ["node", "server.mjs"]
