@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import homeIcon from '../../assets/home.svg'
-import notificationIcon from '../../assets/notification.svg'
-import notificationActiveIcon from '../../assets/notification_active.svg'
+// import notificationIcon from '../../assets/notification.svg'
+// import notificationActiveIcon from '../../assets/notification_active.svg'
 import profileIcon from '../../assets/profile.svg'
 import { onMounted, onUnmounted, ref } from 'vue'
 
-//TODO: 通知の状態に応じて切り替える
-const isNotificationActive = true
+// //TODO: 通知の状態に応じて切り替える
+// const isNotificationActive = true
 
 const isScrolling = ref(false)
 let scrollTimer: ReturnType<typeof setTimeout> | undefined
@@ -43,12 +43,12 @@ onUnmounted(() => {
         <RouterLink to="/">
             <img :src="homeIcon" alt="ホーム" />
         </RouterLink>
-        <RouterLink to="/">
+        <!-- <RouterLink to="/">
             <img
                 :src="isNotificationActive ? notificationActiveIcon : notificationIcon"
                 alt="通知"
             />
-        </RouterLink>
+        </RouterLink> -->
     </footer>
 </template>
 <style scoped>
