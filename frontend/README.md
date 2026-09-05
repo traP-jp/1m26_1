@@ -31,6 +31,22 @@ pnpm --dir frontend run dev
 
 開発時は API モック（MSW）がデフォルトで有効です。バックエンドへ接続する場合は、`VITE_API_MOCKING=false` を指定してください。
 
+## 本番配信
+
+Docker でビルドすると、Nginx が `dist` を配信します。Vue Router の history mode に対応しているため、`/profile` や `/messages/<messageId>` へ直接アクセスしても `index.html` にフォールバックします。
+
+Vite の環境変数はビルド時に埋め込まれるため、デプロイ先の値を build args で指定してください。
+
+```bash
+docker build \
+    --build-arg VITE_API_BASE=https://api.example.com \
+    --build-arg VITE_API_MOCKING=false \
+    --build-arg VITE_TRAQ_CLIENT_ID=<CLIENT_ID> \
+    --build-arg VITE_TRAQ_REDIRECT_URI=https://example.com \
+    -t 1m26_1-frontend ./frontend
+docker run --rm -p 8080:80 1m26_1-frontend
+```
+
 ## よく触る場所
 
 | パス                       | 役割                                         |
