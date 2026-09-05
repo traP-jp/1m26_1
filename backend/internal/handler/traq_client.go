@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -56,9 +57,26 @@ func (t *TraQClient) get(ctx context.Context, token, path string, dst any) error
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusOK {
+	/*if res.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(res.Body, maxTraQErrorBodySize))
 		return fmt.Errorf("traQ GET %s returned %d: %s", path, res.StatusCode, strings.TrimSpace(string(body)))
+	}*/
+
+	if res.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(res.Body, maxTraQErrorBodySize))
+
+		slog.Error("traQ API error",
+			"path", path,
+			"status", res.StatusCode,
+			"body", strings.TrimSpace(string(body)),
+		)
+
+		return fmt.Errorf(
+			"traQ GET %s returned %d: %s",
+			path,
+			res.StatusCode,
+			strings.TrimSpace(string(body)),
+		)
 	}
 
 	if dst == nil {
