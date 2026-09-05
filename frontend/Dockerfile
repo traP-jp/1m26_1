@@ -5,7 +5,8 @@ FROM node:24.17.0-bookworm AS builder
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && pnpm install --frozen-lockfile
+RUN npm install --global pnpm@11.9.0 \
+	&& pnpm install --frozen-lockfile
 
 COPY . .
 
