@@ -19,7 +19,9 @@ ENV VITE_API_BASE=$VITE_API_BASE \
 	VITE_TRAQ_CLIENT_ID=$VITE_TRAQ_CLIENT_ID \
 	VITE_TRAQ_REDIRECT_URI=$VITE_TRAQ_REDIRECT_URI
 
-RUN pnpm run build-only
+RUN pnpm run build-only && \
+    echo "=== DIST ===" && \
+    find /app/dist -maxdepth 2 -type f -print
 
 FROM node:24.17.0-alpine
 
