@@ -33,6 +33,8 @@ const newMessageStore = useNewMessageStore()
 const isLoading = ref(true)
 const authError = ref<string | null>(null)
 
+defineExpose({ isLoading })
+
 const initializeTimeline = async () => {
     isLoading.value = true
     await Promise.all([
@@ -331,8 +333,14 @@ provide(messageListContextKey, {
 <template>
     <!-- ローディング中 -->
     <div v-if="isLoading" class="loading-container">
-        <div class="loading-spinner"></div>
-        <p>認証処理中...</p>
+        <img src="../assets/dopaQ.svg" alt="dopaQのローディング画面"/>
+        <div class="loading-animation">
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
     </div>
     <div v-else-if="authError">{{ authError }}</div>
     <!-- タイムライン表示 -->
@@ -348,3 +356,35 @@ provide(messageListContextKey, {
         :position="palettePosition"
     />
 </template>
+
+<style scoped>
+.loading-container{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    width:100%;
+    height: 100vh;
+}
+.loading-animation{
+    margin-top:16px;
+    width:70%;
+    height:200px;
+    overflow-y: hidden;
+}
+.loading-animation > div{
+    margin:4px auto;
+    height:86px;
+    width:100%;
+    background-color: var(--color-primary);
+    animation: loading-scroll 2s ease-out infinite;
+    opacity: 0.3;
+}
+
+@keyframes loading-scroll {
+    to {
+        transform: translateY(-180px);
+    }
+}
+</style>
