@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import MessageItem from './MessageItem.vue'
 import { useTimelineStore } from '../../stores/timelineStore'
+import SkeletonMessage from './SkeletonMessage.vue'
 
 const store = useTimelineStore()
 
@@ -25,7 +26,14 @@ function handleScrollerUpdate(_viewStartIndex: number, viewEndIndex: number): vo
 <template>
     <section class="timeline" aria-label="タイムライン">
         <!-- ローディング -->
-        <div v-if="store.isLoading" class="state-message">読み込み中...</div>
+        <div v-if="store.isLoading" class="loading-container">
+            <div class="loading-spinner"></div>
+            <p class="state-message">読み込み中...</p>
+            <SkeletonMessage />
+            <SkeletonMessage />
+            <SkeletonMessage />
+            <SkeletonMessage />
+        </div>
 
         <!-- エラー -->
         <div v-else-if="store.error" class="state-message error">
@@ -86,8 +94,27 @@ function handleScrollerUpdate(_viewStartIndex: number, viewEndIndex: number): vo
         </DynamicScroller>
     </section>
 </template>
-
 <style scoped>
+
+.loading-spinner {
+    width: 2rem;
+    height: 2rem;
+    margin: 1rem auto;
+    border: 4px solid var(--surface-border-secondary);
+    border-top-color: var(--accent-color, #ffac47);
+    border-radius: 50%;
+    animation: loading-spin 0.8s linear infinite;
+}
+
+.loading-container p {
+    text-align: center;
+}
+
+@keyframes loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
 .timeline-foot {
     display: flex;
     align-items: center;
@@ -120,4 +147,5 @@ function handleScrollerUpdate(_viewStartIndex: number, viewEndIndex: number): vo
 .timeline-foot__error button:hover {
     background: var(--surface-secondary);
 }
+
 </style>

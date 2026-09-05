@@ -1,26 +1,27 @@
 <script setup lang="ts">
 import AppFooter from './components/layout/AppFooter.vue'
 import AppHeader from './components/layout/AppHeader.vue'
+import TimelineView from './views/TimelineView.vue'
+import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const currentView = ref<InstanceType<typeof TimelineView> | null>(null)
+const isTimelineLoading = computed(
+    () => route.name === 'timeline' && (currentView.value?.isLoading ?? true),
+)
 </script>
 
 <template>
     <div class="app-shell">
-        <AppHeader v-if="$route.path !== '/profile'" />
+        <AppHeader v-if="$route.path !== '/profile' && !isTimelineLoading" />
         <main>
-            <!--
-                タイムラインだけ KeepAlive で保持する。DynamicScroller が実測した
-                投稿の高さ（ResizeObserver 由来）とスクロール位置を保ったまま
-                詳細ビューへ行き来できるようにするため。:include はコンポーネント名で
-                照合するので TimelineView.vue 側に defineOptions({ name: 'TimelineView' })
-                が必要（スロット構文でないと :include が効かない）。
-                詳細ビューは中心投稿ごとに別物なのでキャッシュしない。
-            -->
             <RouterView v-slot="{ Component }">
                 <KeepAlive :include="['TimelineView']">
-                    <component :is="Component" />
+                    <component :is="Component" ref="currentView" />
                 </KeepAlive>
             </RouterView>
         </main>
-        <AppFooter />
+        <AppFooter v-if="!isTimelineLoading" />
     </div>
 </template>
