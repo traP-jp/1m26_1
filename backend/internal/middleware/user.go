@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -80,6 +81,10 @@ func Authenticate(resolve UserResolver) echo.MiddlewareFunc {
 			}
 
 			token := bearerToken(c.Request().Header.Get("Authorization"))
+			slog.Info("auth headers",
+				"forwarded_user", c.Request().Header.Get("X-Forwarded-User"),
+				"has_authorization", c.Request().Header.Get("Authorization") != "",
+			)
 			if token == "" {
 				// ブラウザの WebSocket API は任意のヘッダを送れないため、
 				// WebSocket 接続だけはクエリパラメータのトークンを受け付ける。
