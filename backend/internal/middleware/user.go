@@ -72,6 +72,10 @@ func Authenticate(resolve UserResolver) echo.MiddlewareFunc {
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			slog.Info("auth headers",
+				"forwarded_user", c.Request().Header.Get("X-Forwarded-User"),
+				"has_authorization", c.Request().Header.Get("Authorization") != "",
+			)
 			if userID := strings.TrimSpace(c.Request().Header.Get("X-Forwarded-User")); userID != "" {
 				c.Set(userContextKey, AuthenticatedUser{
 					UserId: userID,
@@ -81,10 +85,6 @@ func Authenticate(resolve UserResolver) echo.MiddlewareFunc {
 			}
 
 			token := bearerToken(c.Request().Header.Get("Authorization"))
-			slog.Info("auth headers",
-				"forwarded_user", c.Request().Header.Get("X-Forwarded-User"),
-				"has_authorization", c.Request().Header.Get("Authorization") != "",
-			)
 			if token == "" {
 				// ブラウザの WebSocket API は任意のヘッダを送れないため、
 				// WebSocket 接続だけはクエリパラメータのトークンを受け付ける。
