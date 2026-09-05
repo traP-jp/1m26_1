@@ -33,7 +33,7 @@ pnpm --dir frontend run dev
 
 ## 本番配信
 
-Docker でビルドすると、Nginx が `dist` を配信します。Vue Router の history mode に対応しているため、`/profile` や `/messages/<messageId>` へ直接アクセスしても `index.html` にフォールバックします。
+Docker でビルドすると、Node の静的サーバーが `dist` を配信します。`PORT` 環境変数に対応しており、Vue Router の history mode に対応しているため、`/profile` や `/messages/<messageId>` へ直接アクセスしても `index.html` にフォールバックします。
 
 Vite の環境変数はビルド時に埋め込まれるため、デプロイ先の値を build args で指定してください。
 
@@ -44,7 +44,7 @@ docker build \
     --build-arg VITE_TRAQ_CLIENT_ID=<CLIENT_ID> \
     --build-arg VITE_TRAQ_REDIRECT_URI=https://example.com \
     -t 1m26_1-frontend ./frontend
-docker run --rm -p 8080:80 1m26_1-frontend
+docker run --rm -p 8080:8080 1m26_1-frontend
 ```
 
 ## よく触る場所
