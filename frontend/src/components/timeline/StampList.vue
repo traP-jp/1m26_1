@@ -1,71 +1,100 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref, watchEffect } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
 import { useStampStore } from '../../stores/stampStore'
-import { useTimelineStore } from '../../stores/timelineStore'
+import { useMessageList } from '../../lib/messageListContext'
 import { traqApi } from '../../lib/api/traq'
+import { addStamp, groupStamps, hasMyStamp, removeStamp, type StampGroup } from '../../lib/stamps'
 import StampTooltip from './StampTooltip.vue'
-import type { traQcomponents } from '../../types/traq'
+import type { components } from '../../gen/api-types'
 
-type MessageStamp = traQcomponents['schemas']['MessageStamp']
+type Stamp = components['schemas']['Stamp']
 
 const props = defineProps<{
     messageId: string
-    stamps: MessageStamp[]
-    othersCount?: number
+    stamps: Stamp[]
 }>()
 
 const authStore = useAuthStore()
 const stampStore = useStampStore()
-const timelineStore = useTimelineStore()
+// スタンプの楽観的更新の書き戻し先とパレットの開閉は、タイムラインと詳細ビューで
+// 相手が違う。ストアを直接掴まず、一覧側が provide する context 経由で呼ぶ。
+const messageList = useMessageList()
+
+// ============================================
+// 0. アニメーション関連の状態管理
+// ============================================
+/** 前フレームの groupedStamps を保持 */
+const previousGroupedStamps = ref<StampGroup[]>([])
+/** アニメーション中のスタンプとそのタイプを管理 */
+const animatingStamps = ref<Map<string, 'add' | 'remove' | 'count-up' | 'count-down'>>(new Map())
+const animationTimers = new Set<ReturnType<typeof setTimeout>>()
+
+const scheduleAnimationCleanup = (stampId: string) => {
+    const timer = setTimeout(() => {
+        animationTimers.delete(timer)
+        animatingStamps.value.delete(stampId)
+        previousGroupedStamps.value = groupedStamps.value
+    }, 200)
+    animationTimers.add(timer)
+}
+
+onUnmounted(() => {
+    for (const timer of animationTimers) clearTimeout(timer)
+    animationTimers.clear()
+})
 
 // ============================================
 // 1. スタンプをグループ化（表示用）
 // ============================================
-const groupedStamps = computed(() => {
-    const groups = new Map<
-        string,
-        {
-            stampId: string
-            totalCount: number
-            isPinned: boolean
-            entries: { userId: string; createdAt: string }[]
-            createdAt: string
-        }
-    >()
+// props.stamps はバックエンドが返す (ユーザー, スタンプ) 単位の全件そのもの
+// （traQ への追加フェッチは不要）。表示用にスタンプごとへまとめるだけ。
+const groupedStamps = computed(() => groupStamps(props.stamps, authStore.userId))
 
-    for (const s of props.stamps) {
-        const group = groups.get(s.stampId)
-        if (group) {
-            group.totalCount += s.count
-            // ★ count 回分 entries に追加
-            for (let i = 0; i < s.count; i++) {
-                group.entries.push({ userId: s.userId, createdAt: s.createdAt })
-            }
-            if (s.createdAt < group.createdAt) {
-                group.createdAt = s.createdAt
-            }
-        } else {
-            groups.set(s.stampId, {
-                stampId: s.stampId,
-                totalCount: s.count,
-                isPinned: s.userId === authStore.userId,
-                entries: Array.from({ length: s.count }, () => ({
-                    userId: s.userId,
-                    createdAt: s.createdAt,
-                })),
-                createdAt: s.createdAt,
-            })
+// ============================================
+// 1.5. groupedStamps の変化を監視してアニメーションを制御
+// ============================================
+
+watchEffect(() => {
+    const current = groupedStamps.value
+    const previous = previousGroupedStamps.value
+
+    // 新しいアニメーションをリセット
+    const newAnimatingStamps = new Map<string, 'add' | 'remove' | 'count-up' | 'count-down'>()
+    // 前フレームに存在したスタンプのstampId:stampのマップを作成（比較用）
+    const previousMap = new Map(previous.map((g) => [g.stampId, g]))
+    const currentMap = new Map(current.map((g) => [g.stampId, g]))
+
+    // 現在のスタンプを走査
+    for (const currentGroup of current) {
+        const prevGroup = previousMap.get(currentGroup.stampId)
+
+        if (!prevGroup) {
+            // 新しいスタンプが追加された
+            newAnimatingStamps.set(currentGroup.stampId, 'add')
+            // 200ms 後にアニメーション状態を削除
+            scheduleAnimationCleanup(currentGroup.stampId)
+        } else if (currentGroup.totalCount > prevGroup.totalCount) {
+            // スタンプの数が増えた
+            newAnimatingStamps.set(currentGroup.stampId, 'count-up')
+            scheduleAnimationCleanup(currentGroup.stampId)
+        } else if (currentGroup.totalCount < prevGroup.totalCount) {
+            // スタンプの数が減った
+            newAnimatingStamps.set(currentGroup.stampId, 'count-down')
+            scheduleAnimationCleanup(currentGroup.stampId)
         }
     }
 
-    for (const group of groups.values()) {
-        group.isPinned = group.entries.some((e) => e.userId === authStore.userId)
+    // 前フレームに存在して、現在には存在しないスタンプを走査
+    for (const prevGroup of previous) {
+        if (!currentMap.has(prevGroup.stampId)) {
+            // スタンプが削除された
+            newAnimatingStamps.set(prevGroup.stampId, 'remove')
+            // 200ms 後にアニメーション状態と一時保持を削除
+            scheduleAnimationCleanup(prevGroup.stampId)
+        }
     }
-
-    return Array.from(groups.values()).sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    )
+    animatingStamps.value = newAnimatingStamps
 })
 
 // ============================================
@@ -74,15 +103,13 @@ const groupedStamps = computed(() => {
 const hoveredStampId = ref<string | null>(null)
 const tooltipPosition = ref({ x: 0, y: 0 })
 const isHoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)').matches
-const addAnimationStampId = computed(() => timelineStore.addAnimationStampId)
-const removeAnimationStampId = computed(() => timelineStore.removeAnimationStampId)
 
 const hoveredGroup = computed(() => {
     if (!hoveredStampId.value) return null
     return groupedStamps.value.find((g) => g.stampId === hoveredStampId.value) ?? null
 })
 
-const onMouseEnter = (group: (typeof groupedStamps.value)[0], event: MouseEvent) => {
+const onMouseEnter = (group: StampGroup, event: MouseEvent) => {
     if (!isHoverCapable) return null
     hoveredStampId.value = group.stampId
     tooltipPosition.value = {
@@ -96,69 +123,51 @@ const onMouseLeave = () => {
 }
 
 // ============================================
+// 2.5. 表示用スタンプリスト（previousGroupedStamps + 新規追加中のスタンプ）
+// ============================================
+const displayGroupedStamps = computed(() => {
+    const result = [...previousGroupedStamps.value]
+
+    // animatingStamps が 'add' のスタンプを groupedStamps から追加
+    for (const group of groupedStamps.value) {
+        if (animatingStamps.value.get(group.stampId) === 'add') {
+            // 既に存在するかチェック
+            if (!result.find((g) => g.stampId === group.stampId)) {
+                result.push(group)
+            }
+        }
+    }
+
+    return result
+})
+
+// ============================================
 // 3. スタンプ操作（押す / 解除）
 // ============================================
 const toggleStamp = async (stampId: string) => {
-    const myEntry = props.stamps.find((s) => s.stampId === stampId && s.userId === authStore.userId)
-    const pinned = !!myEntry
+    const userId = authStore.userId
+    if (!userId) return
 
-    if (pinned) {
-        const remainingAfterSelfRemoval = props.stamps.filter(
-            (s) => !(s.stampId === stampId && s.userId === authStore.userId),
-        )
-        const hasOtherUsers = remainingAfterSelfRemoval.some((s) => s.stampId === stampId)
+    // props.stamps はストア由来なので、楽観的更新の前に元の配列を控えておく
+    // （更新後に読み直すと巻き戻せない）
+    const before = props.stamps
+    const pinned = hasMyStamp(before, stampId, userId)
 
-        const performRemove = async () => {
-            const updatedStamps = props.stamps
-                .map((s) => {
-                    if (s.stampId === stampId && s.userId === authStore.userId) {
-                        return { ...s, count: 0 }
-                    }
-                    return s
-                })
-                .filter((s) => s.count > 0)
-
-            timelineStore.updateMessageStamps(props.messageId, updatedStamps)
-
-            try {
-                await traqApi.unpinStamp(props.messageId, stampId)
-            } catch (error) {
-                console.error('スタンプ解除に失敗:', error)
-                timelineStore.updateMessageStamps(props.messageId, props.stamps)
-            }
-        }
-
-        if (!hasOtherUsers) {
-            timelineStore.triggerRemoveStampAnimation(stampId)
-            window.setTimeout(() => {
-                void performRemove()
-            }, 200)
-        } else {
-            void performRemove()
-        }
-
-        return
-    }
-
-    const now = new Date().toISOString()
-    const updatedStamps = [
-        ...props.stamps,
-        {
-            stampId: stampId,
-            count: 1,
-            userId: authStore.userId!,
-            createdAt: now,
-            updatedAt: now,
-        },
-    ]
-
-    timelineStore.updateMessageStamps(props.messageId, updatedStamps)
+    // 楽観的更新。消えるアニメーションは groupedStamps の差分から出るので、ここでは待たない
+    messageList.updateMessageStamps(
+        props.messageId,
+        pinned ? removeStamp(before, stampId, userId) : addStamp(before, stampId, userId),
+    )
 
     try {
-        await traqApi.pinStamp(props.messageId, stampId)
+        if (pinned) {
+            await traqApi.unpinStamp(props.messageId, stampId)
+        } else {
+            await traqApi.pinStamp(props.messageId, stampId)
+        }
     } catch (error) {
-        console.error('スタンプ追加に失敗:', error)
-        timelineStore.updateMessageStamps(props.messageId, props.stamps)
+        console.error('スタンプ操作に失敗:', error)
+        messageList.updateMessageStamps(props.messageId, before)
     }
 }
 
@@ -169,13 +178,9 @@ const getStamp = (stampId: string) => stampStore.getStamp(stampId)
 const getStampDisplayName = (stampId: string) => stampStore.getStampDisplayName(stampId)
 const getStampImageUrl = (stampId: string) => stampStore.getStampImageUrl(stampId)
 
-const emit = defineEmits<{
-    (e: 'open-palette', messageId: string, position: { x: number; y: number }): void
-}>()
-
 const openPalette = (event: MouseEvent) => {
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
-    emit('open-palette', props.messageId, {
+    messageList.openPalette(props.messageId, {
         x: rect.left,
         y: rect.bottom, // ボタンの下端を基準にする
     })
@@ -184,14 +189,17 @@ const openPalette = (event: MouseEvent) => {
 
 <template>
     <div class="stamp-list">
+        <!-- 通常のスタンプ表示 -->
         <span
-            v-for="group in groupedStamps"
+            v-for="group in displayGroupedStamps"
             :key="group.stampId"
             class="stamp-item"
             :class="{
                 pinned: group.isPinned,
-                'stamp-item--added': addAnimationStampId === group.stampId,
-                'stamp-item--removed': removeAnimationStampId === group.stampId,
+                'animate-add': animatingStamps.get(group.stampId) === 'add',
+                'animate-count-up': animatingStamps.get(group.stampId) === 'count-up',
+                'animate-count-down': animatingStamps.get(group.stampId) === 'count-down',
+                'animate-remove': animatingStamps.get(group.stampId) === 'remove',
             }"
             @click="toggleStamp(group.stampId)"
             @mouseenter="onMouseEnter(group, $event)"
@@ -262,6 +270,65 @@ const openPalette = (event: MouseEvent) => {
     position: relative;
 }
 
+/* ============================================
+   アニメーション定義
+   ============================================ */
+@keyframes slideInFromBottom {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideOutToBottom {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+}
+
+@keyframes drumRollUp {
+    from {
+        transform: translateY(0px);
+        opacity: 0.5;
+    }
+    to {
+        transform: translateY(-20px);
+        opacity: 1;
+    }
+}
+
+@keyframes drumRollDown {
+    from {
+        transform: translateY(0px);
+        opacity: 0.5;
+    }
+    to {
+        transform: translateY(20px);
+        opacity: 1;
+    }
+}
+
+@keyframes zoomIn {
+    from {
+        transform: scale(0.8);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+/* ============================================
+   スタンプアイテムのスタイルとアニメーション
+   ============================================ */
 .stamp-item {
     display: flex;
     align-items: center;
@@ -275,6 +342,29 @@ const openPalette = (event: MouseEvent) => {
     cursor: pointer;
     user-select: none;
     transition: background 0.15s;
+    overflow-y: hidden;
+}
+
+.stamp-item.animate-add {
+    animation: slideInFromBottom 0.2s ease-out forwards;
+}
+.stamp-item.animate-add > .stamp-image {
+    animation: zoomIn 0.2s ease-out forwards;
+}
+
+.stamp-item.animate-remove {
+    animation: slideOutToBottom 0.2s ease-out forwards;
+}
+
+.stamp-item.animate-count-up .stamp-count {
+    animation: drumRollUp 0.2s ease-out forwards;
+}
+.stamp-item.animate-count-up > .stamp-image {
+    animation: zoomIn 0.2s ease-out forwards;
+}
+
+.stamp-item.animate-count-down .stamp-count {
+    animation: drumRollDown 0.2s ease-out forwards;
 }
 
 .stamp-item:hover {
@@ -283,14 +373,6 @@ const openPalette = (event: MouseEvent) => {
 
 .stamp-item.pinned {
     background: #fbe0bb;
-}
-
-.stamp-item--added {
-    animation: fadeInAndMoveUp 0.2s ease-out both;
-}
-
-.stamp-item--removed {
-    animation: fadeOutAndMoveDown 0.2s ease-in both;
 }
 
 .stamp-emoji {
@@ -359,27 +441,5 @@ const openPalette = (event: MouseEvent) => {
     font-weight: 300;
     line-height: 1;
     transform-origin: center;
-}
-
-@keyframes fadeInAndMoveUp {
-    0% {
-        transform: translateY(16px);
-        opacity: 0.5;
-    }
-    100% {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-@keyframes fadeOutAndMoveDown {
-    0% {
-        transform: translateY(0);
-        opacity: 1;
-    }
-    100% {
-        transform: translateY(16px);
-        opacity: 0.5;
-    }
 }
 </style>

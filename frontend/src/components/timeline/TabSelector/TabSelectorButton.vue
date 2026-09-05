@@ -22,7 +22,7 @@ button {
     position: relative;
     border: none;
     width: 80px;
-    height: 34px;
+    height: 100%;
     background-color: transparent;
     cursor: pointer;
     color: var(--text-secondary);

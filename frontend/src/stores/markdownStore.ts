@@ -9,7 +9,11 @@ export const markdownStore: Store = {
     },
 
     getChannel(id) {
-        return useChannelStore().getChannel(id)
+        // traq-markdown-it は getChannel() が undefined を返すとチャンネルメンションを
+        // 描画せず、生の !{"type":"channel",...} JSON を本文に残してしまう。
+        // メンションはリンクを持たない装飾テキストで、表示文字列も投稿者が書いた raw なので、
+        // チャンネル一覧の取得完了を待たずにスタブを返してよい。
+        return useChannelStore().getChannel(id) ?? { id }
     },
 
     getUserGroup() {
@@ -41,6 +45,8 @@ export const markdownStore: Store = {
         return undefined
     },
 
+    // 以下の generate*Href は Store インターフェースの必須メンバなので実装を残しているが、
+    // lib/markdownParser.ts でレンダラールールを上書きしており href は出力されない。
     generateUserHref(id) {
         return `/users/${encodeURIComponent(id)}`
     },

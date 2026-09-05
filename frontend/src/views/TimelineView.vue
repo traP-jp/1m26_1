@@ -5,21 +5,22 @@ import { useTimelineStore } from '../stores/timelineStore'
 import { useUserStore } from '../stores/userStore'
 import { useStampStore } from '../stores/stampStore'
 import { useNewMessageStore } from '../stores/newMessageStore'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { messageListContextKey } from '../lib/messageListContext'
 import { useAuthStore } from '../stores/authStore'
 import { initiateLogin, handleOAuthCallback } from '../lib/auth'
 import { initializeTimelineMetadata } from '../stores/timelineMetadata'
 import { wsManager } from '../lib/websocket'
 import { oneMonthonApi } from '../lib/api/endpoints'
-import type { traQcomponents } from '../types/traq'
 import { traqApi } from '../lib/api/traq.ts'
 import { API_CONCURRENCY, mapWithConcurrency } from '../lib/concurrency'
 import type { components } from '../gen/api-types'
 import StampPalette from '../components/stamp-palette/StampPalette.vue'
+import { useStampPalette } from '../composables/useStampPalette'
 
-type Message = traQcomponents['schemas']['Message']
-type Stamp = traQcomponents['schemas']['Stamp']
+// KeepAlive の :include で名指しするための名前（App.vue 参照）
+defineOptions({ name: 'TimelineView' })
 
 const route = useRoute()
 const router = useRouter()
@@ -31,6 +32,8 @@ const newMessageStore = useNewMessageStore()
 
 const isLoading = ref(true)
 const authError = ref<string | null>(null)
+
+defineExpose({ isLoading })
 
 const initializeTimeline = async () => {
     isLoading.value = true
@@ -47,10 +50,21 @@ const initializeTimeline = async () => {
 // WebSocket イベントハンドラ
 // ============================================
 
+// WebSocket の body は網の向こうから来る未検証の値なので、
+// 使う前に必ず形を確かめる。ここを省くと、例えば messageIds が無いときに
+// mapWithConcurrency の items.length で読み解けないエラーになって落ちる。
+const warnUnexpectedBody = (type: string, body: unknown) => {
+    console.warn(`WebSocket ${type}: 想定外の body 形式です`, body)
+}
+
 /**
  * 新規投稿作成イベント
  */
 const onMessageCreated = (body: { messageCount: number }) => {
+    if (typeof body?.messageCount !== 'number') {
+        warnUnexpectedBody('MessageCreated', body)
+        return
+    }
     newMessageStore.setCount(body.messageCount)
     newMessageStore.show()
 }
@@ -59,42 +73,76 @@ const onMessageCreated = (body: { messageCount: number }) => {
  * 投稿削除イベント
  */
 const onMessageDeleted = (body: { messageId: string }) => {
+    if (typeof body?.messageId !== 'string') {
+        warnUnexpectedBody('MessageDeleted', body)
+        return
+    }
     timelineStore.removeMessage(body.messageId)
 }
 
 /**
  * 投稿編集イベント
- * 該当メッセージを再取得してストアを更新する
+ * 編集で変わるのは本文だけなので、traQ から本文を引き直して既存の項目に上書きする
+ * （スタンプ集計値や popularity はバックエンド由来のものを保つ）
  */
 const onMessageEdited = async (body: { messageIds: string[] }) => {
-    // 各メッセージを並列で再取得
-    const results = await mapWithConcurrency(body.messageIds, API_CONCURRENCY, (id) =>
+    if (!Array.isArray(body?.messageIds)) {
+        warnUnexpectedBody('MessageEdited', body)
+        return
+    }
+
+    // タイムラインに出ていないメッセージを引きに行っても捨てるだけなので絞る
+    const targetIds = body.messageIds.filter((id) =>
+        timelineStore.messages.some((m) => m.id === id),
+    )
+    if (targetIds.length === 0) return
+
+    const results = await mapWithConcurrency(targetIds, API_CONCURRENCY, (id) =>
         traqApi.getMessage(id),
     )
 
     for (const result of results) {
-        if (result.status === 'fulfilled') {
-            timelineStore.updateMessage(result.value)
-        } else {
+        if (result.status !== 'fulfilled') {
             console.error('メッセージ再取得に失敗:', result.reason)
+            continue
         }
+        const fetched = result.value
+        const existing = timelineStore.messages.find((m) => m.id === fetched.id)
+        if (!existing) continue
+        timelineStore.updateMessage({
+            ...existing,
+            content: fetched.content,
+            updatedAt: fetched.updatedAt,
+        })
     }
 }
 
 /**
  * スタンプ更新イベント
- * TODO: 実際のデータ構造に合わせて実装
+ *
+ * body.stamps は (ユーザー, スタンプ) 単位の全件なので、そのまま置き換えるだけでよい。
+ *
+ * 注意: バックエンドの traQ リレー（backend/internal/handler/traQ_websocket.go）は
+ * 現状 body に stamps 配列だけを入れており messageId を送ってこないため、実環境では
+ * 下のガードに落ちて何もしない。どのメッセージの更新かはフロントからは判別できないので、
+ * 直すのはバックエンド側。ここでは OpenAPI 仕様どおりの body が来た場合を実装しておく。
  */
 const onStampUpdated = (body: components['schemas']['StampUpdatedBody']) => {
-    // body.stamps に messageId が含まれていないため、現時点では更新不可
-    console.warn('StampUpdated イベントを受信しましたが、messageId がないため実装保留', body)
-    // TODO: バックエンドと協議し、messageId を追加するか、全メッセージを再取得するか検討
+    if (typeof body?.messageId !== 'string' || !Array.isArray(body?.stamps)) {
+        warnUnexpectedBody('StampUpdated', body)
+        return
+    }
+    timelineStore.updateMessageStamps(body.messageId, body.stamps)
 }
 
 /**
  * ユーザー名変更イベント
  */
 const onUsernameChanged = (body: components['schemas']['UsernameChangedBody']) => {
+    if (typeof body?.user?.userId !== 'string') {
+        warnUnexpectedBody('UsernameChanged', body)
+        return
+    }
     const user = userStore.users.get(body.user.id ?? body.user.userId)
     if (user && body.user.name) {
         user.displayName = body.user.name
@@ -116,6 +164,10 @@ const onUserIconReplaced = (body: { userId: string }) => {
  * スタンプ情報変更イベント（名称）
  */
 const onStampInfoChanged = (body: { stampId: string; name: string }) => {
+    if (typeof body?.stampId !== 'string' || typeof body?.name !== 'string') {
+        warnUnexpectedBody('StampInfoChanged', body)
+        return
+    }
     const stamp = stampStore.stamps.get(body.stampId)
     if (stamp) {
         stamp.name = body.name
@@ -152,25 +204,16 @@ const setupWebSocket = () => {
  */
 const handleLoadNewMessages = async () => {
     try {
-        const response = await oneMonthonApi.getTimelineNew(timelineStore.sortByPopularity)
-        if (response && response.messages.length > 0) {
-            // メッセージ詳細を取得
-            const results = await mapWithConcurrency(response.messages, API_CONCURRENCY, (id) =>
-                traqApi.getMessage(id),
-            )
-            const newMessages: Message[] = []
-            for (const result of results) {
-                if (result.status === 'fulfilled') {
-                    newMessages.push(result.value)
-                } else {
-                    console.error('新着メッセージの詳細取得に失敗:', result.reason)
-                }
-            }
-            if (newMessages.length > 0) {
-                timelineStore.prependMessages(newMessages)
-                // トップへスクロール
-                window.scrollTo({ top: 0, behavior: 'smooth' })
-            }
+        // バックエンドが本文まで返すので、そのまま先頭に足せる。
+        // 「今持っている中で最も新しい投稿より後」を要求する。
+        const response = await oneMonthonApi.getTimelineNew(
+            timelineStore.sortByPopularity,
+            timelineStore.newestCreatedAt(),
+        )
+        if (response && response.length > 0) {
+            timelineStore.prependMessages(response)
+            // トップへスクロール（スクローラは page-mode なのでページごと動かす）
+            window.scrollTo({ top: 0, behavior: 'smooth' })
         }
     } catch (error) {
         console.error('新着メッセージの取得に失敗:', error)
@@ -195,9 +238,10 @@ onMounted(async () => {
 
         if (result.success) {
             await initializeTimeline()
-            if (result.redirectTo === '/') {
-                setupWebSocket()
-            }
+            // 以前は redirectTo === '/' のときだけ接続していたが、/messages/:id への
+            // 直リンクからログインした場合 redirectTo はそちらになり、WebSocket が
+            // 一生繋がらないままになる。リダイレクト先に関わらず必ず接続する。
+            setupWebSocket()
             await router.replace({ path: result.redirectTo, query: {} })
         } else {
             authError.value = result.error || '認証に失敗しました'
@@ -262,96 +306,85 @@ onUnmounted(() => {
 // ============================================
 // スタンプパレット管理
 // ============================================
-const isPaletteOpen = ref(false)
-const targetMessageId = ref<string | null>(null)
-const palettePosition = ref({ x: 0, y: 0 })
+const { isPaletteOpen, palettePosition, openPalette, closePalette, selectStamp } = useStampPalette({
+    findMessage: (messageId) => timelineStore.messages.find((message) => message.id === messageId),
+    updateMessageStamps: timelineStore.updateMessageStamps,
+    onAdd: (_messageId, stampId, stamps) => {
+        const userId = authStore.userId
+        if (
+            userId &&
+            !stamps.some((stamp) => stamp.stampId === stampId && stamp.userId === userId)
+        ) {
+            timelineStore.triggerAddStampAnimation(stampId)
+        }
+    },
+})
 
-const handleOpenPalette = (messageId: string, position: { x: number; y: number }) => {
-    targetMessageId.value = messageId
-    palettePosition.value = position
-    isPaletteOpen.value = true
-}
-
-// スタンプ選択時の処理（楽観的更新付き）
-const handleSelectStamp = async (stamp: Stamp) => {
-    if (!targetMessageId.value) return
-
-    const messageId = targetMessageId.value
-    const stampId = stamp.id
-
-    // 1. 現在のメッセージを取得
-    const targetMessage = timelineStore.messages.find((m) => m.id === messageId)
-    if (!targetMessage) {
-        console.warn('対象メッセージが見つかりません')
-        return
-    }
-
-    // 2. 自分のエントリを探す
-    const myEntry = targetMessage.stamps.find(
-        (s) => s.stampId === stampId && s.userId === authStore.userId,
-    )
-
-    let updatedStamps = [...targetMessage.stamps]
-
-    if (myEntry) {
-        // 既に押している → count を +1
-        updatedStamps = updatedStamps.map((s) => {
-            if (s.stampId === stampId && s.userId === authStore.userId) {
-                return { ...s, count: s.count + 1 }
-            }
-            return s
-        })
-    } else {
-        // 新規追加
-        const now = new Date().toISOString()
-        updatedStamps.push({
-            stampId: stampId,
-            count: 1,
-            userId: authStore.userId!,
-            createdAt: now,
-            updatedAt: now,
-        })
-        timelineStore.triggerAddStampAnimation(stampId)
-    }
-
-    // 3. 楽観的更新（即座に UI 反映）
-    timelineStore.updateMessageStamps(messageId, updatedStamps)
-
-    // 4. 実際の API リクエスト
-    try {
-        await traqApi.pinStamp(messageId, stampId)
-        // 成功 → WebSocket イベントで最終状態に収束（モック環境ではイベントが来ないが、楽観的更新で十分）
-    } catch (error) {
-        console.error('スタンプ追加に失敗:', error)
-        // 失敗したら元に戻す（ロールバック）
-        timelineStore.updateMessageStamps(messageId, targetMessage.stamps)
-    }
-}
-
-// パレットを閉じる（パレット外クリック用）
-const closePalette = () => {
-    isPaletteOpen.value = false
-    targetMessageId.value = null
-}
+// 投稿カードから飛んでくる操作の受け口。カードは階層が深く emit で中継しきれないので
+// provide で渡す（MessageDetailView も同じ形で、書き戻し先のストアだけが違う）。
+provide(messageListContextKey, {
+    updateMessageStamps: timelineStore.updateMessageStamps,
+    openMessage: (messageId: string) =>
+        router.push({ name: 'message-detail', params: { messageId } }),
+    openPalette,
+})
 </script>
 
 <template>
     <!-- ローディング中 -->
     <div v-if="isLoading" class="loading-container">
-        <div class="loading-spinner"></div>
-        <p>認証処理中...</p>
+        <img src="../assets/dopaQ.svg" alt="dopaQのローディング画面"/>
+        <div class="loading-animation">
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
     </div>
     <div v-else-if="authError">{{ authError }}</div>
     <!-- タイムライン表示 -->
     <div v-else>
         <NewMessageBanner @load-new-messages="handleLoadNewMessages" />
-        <TimelineContainer :messages="timelineStore.messages" @open-palette="handleOpenPalette" />
+        <TimelineContainer />
     </div>
 
     <StampPalette
         v-model="isPaletteOpen"
-        @select="handleSelectStamp"
+        @select="selectStamp"
         @close="closePalette"
         :position="palettePosition"
     />
 </template>
+
+<style scoped>
+.loading-container{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    width:100%;
+    height: 100vh;
+}
+.loading-animation{
+    margin-top:16px;
+    width:70%;
+    height:200px;
+    overflow-y: hidden;
+}
+.loading-animation > div{
+    margin:4px auto;
+    height:86px;
+    width:100%;
+    background-color: var(--color-primary);
+    animation: loading-scroll 2s ease-out infinite;
+    opacity: 0.3;
+}
+
+@keyframes loading-scroll {
+    to {
+        transform: translateY(-180px);
+    }
+}
+</style>

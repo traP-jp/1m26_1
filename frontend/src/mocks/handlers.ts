@@ -1,6 +1,8 @@
 import { http, HttpResponse, delay, ws } from 'msw'
 import type { components } from '@/gen/api-types'
 import type { traQcomponents } from '@/types/traq'
+import { toTimelineMessage } from '../lib/messageAdapter'
+import { totalStampCount } from '../lib/stamps'
 
 // ============================================
 // 1. 型定義（traQ API v3 用・手動定義）
@@ -13,12 +15,11 @@ type ChannelsResponse = traQcomponents['schemas']['ChannelsResponse']
 type Stamp = traQcomponents['schemas']['Stamp']
 type MessageStamp = traQcomponents['schemas']['MessageStamp']
 type Message = traQcomponents['schemas']['Message']
+type MessageSearchResult = traQcomponents['schemas']['MessageSearchResult']
 type FileInfo = traQcomponents['schemas']['FileInfo']
 
 type ApiUser = components['schemas']['User']
 type ApiUserProfile = components['schemas']['UserProfile']
-type ApiTimelineMessage = components['schemas']['TimelineMessage']
-type ApiSortByPopularity = components['schemas']['SortByPopularity']
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
 const apiUrl = (path: string): string => new URL(path, API_BASE_URL).toString()
@@ -109083,9 +109084,7 @@ if (targetMessage) {
             updatedAt: now,
         },
     ]
-    console.log(targetMessage)
     MESSAGE_POOL[0] = targetMessage
-    console.log(MESSAGE_POOL[0])
 }
 // 2番目のメッセージにも同様のケースを追加（別のスタンプで）
 const secondMessage = MESSAGE_POOL[1]!
@@ -109147,18 +109146,34 @@ for (const [index, content] of quoteFixtures) {
     quoteMessage.updatedAt = now
 }
 
+// 新着は MESSAGE_POOL のどれよりも必ず新しくしておく。
+// generateMockMessage の createdAt は index から決まるため（101 番は 1/11 になる）、
+// そのままだとプール最新（1/29 あたり）より古く、after= 付きの取得で 1 件も返らなくなる。
+const newestPoolCreatedAt = MESSAGE_POOL.reduce(
+    (max, m) => (m.createdAt > max ? m.createdAt : max),
+    MESSAGE_POOL[0]?.createdAt ?? new Date(0).toISOString(),
+)
+const afterNewestPool = (minutes: number) =>
+    new Date(new Date(newestPoolCreatedAt).getTime() + minutes * 60_000).toISOString()
+
 let pendingNewMessages: Message[] = [
     generateMockMessage(101, {
         channelId: 'f2bea4b7-8a2d-43ba-b84b-f53aea3d43c5',
         content: '✨ 新着メッセージその1！',
+        createdAt: afterNewestPool(1),
+        updatedAt: afterNewestPool(1),
     }),
     generateMockMessage(102, {
         channelId: 'f2bea4b7-8a2d-43ba-b84b-f53aea3d43c5',
         content: '📢 新着メッセージその2！',
+        createdAt: afterNewestPool(2),
+        updatedAt: afterNewestPool(2),
     }),
     generateMockMessage(103, {
         channelId: '019db58b-5bb0-743f-ab67-fd1bc2ab9a25',
         content: '🎉 1-Monthon進捗どうですか？',
+        createdAt: afterNewestPool(3),
+        updatedAt: afterNewestPool(3),
     }),
 ]
 
@@ -109246,45 +109261,49 @@ const oneMonthonHandlers = [
 
     http.get(apiUrl('/api/timeline'), async ({ request }) => {
         await simulateNetworkDelay(400)
-        const isPopular: ApiSortByPopularity =
-            new URL(request.url).searchParams.get('SortByPopularity') === 'true'
+        const params = new URL(request.url).searchParams
+        const isPopular = params.get('sortByPopularity') === 'true'
+        // before 省略 = 最新から。指定時はそれより古い分。
+        const before = params.get('before')
 
-        let messageIds = MESSAGE_POOL.map((m) => m.id)
+        // どの 30 件を返すかは必ず時刻で決める（新しい順に並べてから切る）。
+        // 人気順の並べ替えは切り出した 1 ページの中だけで行う。
+        // こうしないとページの範囲が人気度に左右され、before によるページングが破綻する。
+        const candidates = before
+            ? MESSAGE_POOL.filter((m) => new Date(m.createdAt) < new Date(before))
+            : [...MESSAGE_POOL]
+
+        const page = candidates
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 30)
+
         if (isPopular) {
-            messageIds = [...messageIds].sort((a, b) => {
-                const aMsg = MESSAGE_POOL.find((m) => m.id === a)
-                const bMsg = MESSAGE_POOL.find((m) => m.id === b)
-                const aCount = aMsg?.stamps?.reduce((sum, s) => sum + s.count, 0) || 0
-                const bCount = bMsg?.stamps?.reduce((sum, s) => sum + s.count, 0) || 0
-                return bCount - aCount
-            })
-        } else {
-            messageIds = [...messageIds].sort((a, b) => {
-                const aMsg = MESSAGE_POOL.find((m) => m.id === a)
-                const bMsg = MESSAGE_POOL.find((m) => m.id === b)
-                return (
-                    new Date(bMsg?.createdAt || 0).getTime() -
-                    new Date(aMsg?.createdAt || 0).getTime()
-                )
-            })
+            page.sort((a, b) => totalStampCount(b.stamps) - totalStampCount(a.stamps))
         }
 
-        const limited = messageIds.slice(0, 30)
-        const response: ApiTimelineMessage = { messages: limited }
-        return HttpResponse.json(response)
+        return HttpResponse.json(page.map(toTimelineMessage))
     }),
 
-    http.get(apiUrl('/api/timeline/new'), async () => {
+    http.get(apiUrl('/api/timeline/new'), async ({ request }) => {
         await simulateNetworkDelay(200)
+        const after = new URL(request.url).searchParams.get('after')
+
+        // after が指定されていれば、それより後の新着だけを返す
+        const fresh = after
+            ? pendingNewMessages.filter((m) => new Date(m.createdAt) > new Date(after))
+            : pendingNewMessages
 
         // 新着がある場合
-        if (pendingNewMessages.length > 0) {
-            const newIds = pendingNewMessages.map((m) => m.id)
+        if (fresh.length > 0) {
+            // 先頭に差し込む用途なので、人気順ではなく時刻順（新しい順）で返す
+            const response = [...fresh]
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                .map(toTimelineMessage)
             // 新着メッセージを MESSAGE_POOL の先頭に追加（次回以降の /timeline で取得できるように）
-            MESSAGE_POOL.unshift(...pendingNewMessages)
-            // 新着リストをクリア（一度だけの動作）
-            pendingNewMessages = []
-            const response: ApiTimelineMessage = { messages: newIds }
+            MESSAGE_POOL.unshift(...fresh)
+            // 返した分を新着リストから外す（一度だけの動作）
+            const returned = new Set(fresh.map((m) => m.id))
+            pendingNewMessages = pendingNewMessages.filter((m) => !returned.has(m.id))
             return HttpResponse.json(response)
         }
 
@@ -109359,6 +109378,7 @@ const traqHandlers = [
             const offset = parseInt(url.searchParams.get('offset') || '0', 10)
             const since = url.searchParams.get('since')
             const until = url.searchParams.get('until')
+            const inclusive = url.searchParams.get('inclusive') !== 'false'
             const order = url.searchParams.get('order') || 'desc'
 
             let messages = MESSAGE_POOL.filter((m) => m.channelId === channelId)
@@ -109372,11 +109392,19 @@ const traqHandlers = [
 
             if (since) {
                 const sinceDate = new Date(since)
-                messages = messages.filter((m) => new Date(m.createdAt) >= sinceDate)
+                messages = messages.filter((m) =>
+                    inclusive
+                        ? new Date(m.createdAt) >= sinceDate
+                        : new Date(m.createdAt) > sinceDate,
+                )
             }
             if (until) {
                 const untilDate = new Date(until)
-                messages = messages.filter((m) => new Date(m.createdAt) <= untilDate)
+                messages = messages.filter((m) =>
+                    inclusive
+                        ? new Date(m.createdAt) <= untilDate
+                        : new Date(m.createdAt) < untilDate,
+                )
             }
 
             messages = [...messages].sort((a, b) => {
@@ -109415,6 +109443,51 @@ const traqHandlers = [
             return HttpResponse.json(newMessage, { status: 201 })
         },
     ),
+
+    // プロフィール画面の「記録」「投稿」タブ用（frontend/src/lib/api/traq.ts の searchMessages）。
+    // from / after / before / limit / offset / sort のみ対応（未使用のパラメータは無視する）。
+    http.get('https://q.trap.jp/api/v3/messages', async ({ request }) => {
+        await simulateNetworkDelay(200)
+
+        const url = new URL(request.url)
+        const fromIds = url.searchParams.getAll('from')
+        const after = url.searchParams.get('after')
+        const before = url.searchParams.get('before')
+        const limit = parseInt(url.searchParams.get('limit') || '20', 10)
+        const offset = parseInt(url.searchParams.get('offset') || '0', 10)
+        const sort = url.searchParams.get('sort') || 'createdAt'
+
+        let hits = [...MESSAGE_POOL]
+
+        if (fromIds.length > 0) {
+            hits = hits.filter((m) => fromIds.includes(m.userId))
+        }
+        if (after) {
+            const afterDate = new Date(after)
+            hits = hits.filter((m) => new Date(m.createdAt) > afterDate)
+        }
+        if (before) {
+            const beforeDate = new Date(before)
+            hits = hits.filter((m) => new Date(m.createdAt) < beforeDate)
+        }
+
+        // traQ の符号は直感と逆: 'createdAt'（符号なし）が新しい順、'-createdAt' が古い順
+        const [sortField, sortOrder] = sort.startsWith('-')
+            ? [sort.slice(1), 'asc' as const]
+            : [sort, 'desc' as const]
+        hits.sort((a, b) => {
+            const aValue = sortField === 'updatedAt' ? a.updatedAt : a.createdAt
+            const bValue = sortField === 'updatedAt' ? b.updatedAt : b.createdAt
+            const diff = new Date(aValue).getTime() - new Date(bValue).getTime()
+            return sortOrder === 'asc' ? diff : -diff
+        })
+
+        const totalHits = hits.length
+        const paginated = hits.slice(offset, offset + limit)
+
+        const response: MessageSearchResult = { totalHits, hits: paginated }
+        return HttpResponse.json(response)
+    }),
 
     http.get('https://q.trap.jp/api/v3/messages/:messageId', async ({ params }) => {
         await simulateNetworkDelay(150)

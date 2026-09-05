@@ -183,6 +183,17 @@ export interface Message {
 }
 
 /**
+ * メッセージ検索結果
+ * GET /messages のレスポンス
+ */
+interface MessageSearchResult {
+    /** 検索にヒットしたメッセージの総件数（hits の長さではなく、limit を無視した全体の件数） */
+    totalHits: number
+    /** 検索にヒットしたメッセージ（limit / offset で切り出された分） */
+    hits: Message[]
+}
+
+/**
  * サムネイル情報
  */
 interface ThumbnailInfo {
@@ -267,6 +278,8 @@ export interface traQcomponents {
         MessageStamp: MessageStamp
         /** メッセージ情報 */
         Message: Message
+        /** メッセージ検索結果 */
+        MessageSearchResult: MessageSearchResult
         /** サムネイル情報 */
         ThumbnailInfo: ThumbnailInfo
         /** @deprecated サムネイル情報 (旧形式) */
