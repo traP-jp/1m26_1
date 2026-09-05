@@ -164,7 +164,7 @@ export interface components {
             stampCount?: components['schemas']['Count']
         }
         /** @description 人気 (True) / 最新 (False) */
-        SortByPopularity: boolean
+        sortByPopularity: boolean
         Error: {
             message: string
         }
@@ -173,28 +173,28 @@ export interface components {
         }
         /** @enum {string} */
         WebSocketEventType:
-            | 'Initialized'
-            | 'MessageCreated'
-            | 'MessageDeleted'
-            | 'MessageEdited'
-            | 'StampUpdated'
-            | 'UsernameChanged'
-            | 'UserIconReplaced'
-            | 'StampInfoChanged'
-            | 'StampImageReplaced'
-            | 'CountReachingThreshold'
+        | 'Initialized'
+        | 'MessageCreated'
+        | 'MessageDeleted'
+        | 'MessageEdited'
+        | 'StampUpdated'
+        | 'UsernameChanged'
+        | 'UserIconReplaced'
+        | 'StampInfoChanged'
+        | 'StampImageReplaced'
+        | 'CountReachingThreshold'
         /** @description 送信される WebSocket イベント。 */
         UserWebSocketEvent:
-            | components['schemas']['InitializedEvent']
-            | components['schemas']['MessageCreatedEvent']
-            | components['schemas']['MessageDeletedEvent']
-            | components['schemas']['MessageEditedEvent']
-            | components['schemas']['StampUpdatedEvent']
-            | components['schemas']['UsernameChangedEvent']
-            | components['schemas']['UserIconReplacedEvent']
-            | components['schemas']['StampInfoChangedEvent']
-            | components['schemas']['StampImageReplacedEvent']
-            | components['schemas']['CountReachingThresholdEvent']
+        | components['schemas']['InitializedEvent']
+        | components['schemas']['MessageCreatedEvent']
+        | components['schemas']['MessageDeletedEvent']
+        | components['schemas']['MessageEditedEvent']
+        | components['schemas']['StampUpdatedEvent']
+        | components['schemas']['UsernameChangedEvent']
+        | components['schemas']['UserIconReplacedEvent']
+        | components['schemas']['StampInfoChangedEvent']
+        | components['schemas']['StampImageReplacedEvent']
+        | components['schemas']['CountReachingThresholdEvent']
         WebSocketEventBase: {
             type: components['schemas']['WebSocketEventType']
             body: {
@@ -384,7 +384,7 @@ export interface operations {
     getTimeline: {
         parameters: {
             query: {
-                SortByPopularity: boolean
+                sortByPopularity: boolean
                 all: boolean
             }
             header?: never
@@ -410,7 +410,7 @@ export interface operations {
     getIn: {
         parameters: {
             query: {
-                SortByPopularity: boolean
+                sortByPopularity: boolean
                 all: boolean
             }
             header?: never

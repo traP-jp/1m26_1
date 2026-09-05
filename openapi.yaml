@@ -8,6 +8,8 @@ info:
 servers:
     - url: http://localhost:8080
       description: 開発環境ダヨ
+    - url: https://dopaq.trap.show
+      description: 本番環境やで
 
 security:
     - forwardedUser: []
