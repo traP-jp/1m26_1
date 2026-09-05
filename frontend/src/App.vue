@@ -14,7 +14,7 @@ const isTimelineLoading = computed(
 
 <template>
     <div class="app-shell">
-        <AppHeader v-if="!isTimelineLoading" />
+        <AppHeader v-if="$route.path !== '/profile' && !isTimelineLoading" />
         <main>
             <RouterView v-slot="{ Component }">
                 <KeepAlive :include="['TimelineView']">

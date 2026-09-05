@@ -15,6 +15,7 @@ type ChannelsResponse = traQcomponents['schemas']['ChannelsResponse']
 type Stamp = traQcomponents['schemas']['Stamp']
 type MessageStamp = traQcomponents['schemas']['MessageStamp']
 type Message = traQcomponents['schemas']['Message']
+type MessageSearchResult = traQcomponents['schemas']['MessageSearchResult']
 type FileInfo = traQcomponents['schemas']['FileInfo']
 
 type ApiUser = components['schemas']['User']
@@ -109442,6 +109443,51 @@ const traqHandlers = [
             return HttpResponse.json(newMessage, { status: 201 })
         },
     ),
+
+    // プロフィール画面の「記録」「投稿」タブ用（frontend/src/lib/api/traq.ts の searchMessages）。
+    // from / after / before / limit / offset / sort のみ対応（未使用のパラメータは無視する）。
+    http.get('https://q.trap.jp/api/v3/messages', async ({ request }) => {
+        await simulateNetworkDelay(200)
+
+        const url = new URL(request.url)
+        const fromIds = url.searchParams.getAll('from')
+        const after = url.searchParams.get('after')
+        const before = url.searchParams.get('before')
+        const limit = parseInt(url.searchParams.get('limit') || '20', 10)
+        const offset = parseInt(url.searchParams.get('offset') || '0', 10)
+        const sort = url.searchParams.get('sort') || 'createdAt'
+
+        let hits = [...MESSAGE_POOL]
+
+        if (fromIds.length > 0) {
+            hits = hits.filter((m) => fromIds.includes(m.userId))
+        }
+        if (after) {
+            const afterDate = new Date(after)
+            hits = hits.filter((m) => new Date(m.createdAt) > afterDate)
+        }
+        if (before) {
+            const beforeDate = new Date(before)
+            hits = hits.filter((m) => new Date(m.createdAt) < beforeDate)
+        }
+
+        // traQ の符号は直感と逆: 'createdAt'（符号なし）が新しい順、'-createdAt' が古い順
+        const [sortField, sortOrder] = sort.startsWith('-')
+            ? [sort.slice(1), 'asc' as const]
+            : [sort, 'desc' as const]
+        hits.sort((a, b) => {
+            const aValue = sortField === 'updatedAt' ? a.updatedAt : a.createdAt
+            const bValue = sortField === 'updatedAt' ? b.updatedAt : b.createdAt
+            const diff = new Date(aValue).getTime() - new Date(bValue).getTime()
+            return sortOrder === 'asc' ? diff : -diff
+        })
+
+        const totalHits = hits.length
+        const paginated = hits.slice(offset, offset + limit)
+
+        const response: MessageSearchResult = { totalHits, hits: paginated }
+        return HttpResponse.json(response)
+    }),
 
     http.get('https://q.trap.jp/api/v3/messages/:messageId', async ({ params }) => {
         await simulateNetworkDelay(150)
